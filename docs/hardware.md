@@ -15,7 +15,8 @@
 ### Why the boot settings matter
 
 The Pi 4 has one full UART, which Bluetooth uses by default. The RaspBee II
-needs it, so `dtoverlay=miniuart-bt` moves Bluetooth to the mini UART. I2C is
+needs it, so `dtoverlay=miniuart-bt` moves Bluetooth to the mini UART, and
+`core_freq=250` fixes the core clock the mini UART's timing depends on. I2C is
 off by default and HA OS has no `raspi-config`, so `config.txt` turns it on and
 `CONFIG/modules/rpi-i2c.conf` loads the kernel modules. Both live in
 [`ha-os/boot`](../ha-os/boot) and `scripts/prepare-boot.sh` applies them.
