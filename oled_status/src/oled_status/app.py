@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import logging
 import signal
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import replace
@@ -88,7 +89,10 @@ def run(
     states are dropped and a "connection lost" screen replaces them, so an old
     snapshot never passes for the current state of locks, leaks or power.
     """
-    signal.signal(signal.SIGTERM, _stop)
+    # Signal handlers can only be installed from the main thread; elsewhere
+    # (tests, embedding) the caller owns shutdown.
+    if threading.current_thread() is threading.main_thread():
+        signal.signal(signal.SIGTERM, _stop)
     started = clock()
     last_fetch = float("-inf")
     last_success = float("-inf")
@@ -102,7 +106,8 @@ def run(
                 last_fetch = moment
                 try:
                     snapshot = build(home.states(), settings, now())
-                    last_success = moment
+                    # Measured after the request, which may take up to its timeout.
+                    last_success = clock()
                 except (OSError, ValueError) as error:
                     log.warning("could not read states: %s", error)
                     if snapshot is not None and moment - last_success > stale_after(settings):

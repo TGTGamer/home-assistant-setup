@@ -23,6 +23,7 @@
 
 from __future__ import annotations
 
+import threading
 from datetime import datetime
 
 from PIL import Image
@@ -129,3 +130,20 @@ def test_drops_stale_states_after_a_long_outage() -> None:
 def test_stale_limit_scales_with_refresh_interval() -> None:
     """Slow refresh intervals get three missed refreshes before data is dropped."""
     assert app.stale_after(Settings(refresh_seconds=40)) == 120
+
+
+def test_runs_outside_the_main_thread() -> None:
+    """The loop works from a worker thread, where signal handlers cannot be set."""
+    errors: list[BaseException] = []
+
+    def work() -> None:
+        """Run a couple of frames, keeping any exception for the assertion."""
+        try:
+            run(Settings(), FakeHome([states()]), datetime(2026, 9, 25, 12, 0), frames=2)
+        except BaseException as error:
+            errors.append(error)
+
+    worker = threading.Thread(target=work)
+    worker.start()
+    worker.join()
+    assert errors == []
