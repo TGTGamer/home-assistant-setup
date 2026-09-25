@@ -1,0 +1,20 @@
+{
+  "name": "home-assistant-setup",
+  "private": true,
+  "description": "Home Assistant OS setup, runbooks and apps for a Raspberry Pi 4 home hub",
+  "license": "SEE LICENSE IN LICENSE",
+  "packageManager": "pnpm@12.4.2",
+  "scripts": {
+    "setup": "uv sync --locked",
+    "test": "uv run pytest",
+    "lint": "uv run ruff check . && uv run ruff format --check .",
+    "format": "uv run ruff format . && uv run ruff check --fix .",
+    "typecheck": "uv run mypy",
+    "house": "uv run python scripts/house_checks.py",
+    "house:fix": "uv run python scripts/house_checks.py --fix",
+    "license-check": "uv run python scripts/license_check.py",
+    "preview": "uv run python -m oled_status --preview previews",
+    "dev": "uv run python -m oled_status --options oled_status/dev-options.json --file previews/live.png",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm house && pnpm license-check"
+  }
+}

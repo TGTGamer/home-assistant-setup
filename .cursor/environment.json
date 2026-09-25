@@ -1,0 +1,10 @@
+{
+  "install": "scripts/agent-setup.sh",
+  "terminals": [
+    {
+      "name": "previews",
+      "command": "pnpm preview",
+      "description": "Renders every OLED page to previews/*.png from sample data"
+    }
+  ]
+}
