@@ -1,0 +1,33 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "OLED: render previews",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "oled_status",
+      "args": ["--preview", "previews"],
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "preLaunchTask": "setup"
+    },
+    {
+      "name": "OLED: live to previews/live.png",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "oled_status",
+      "args": ["--options", "oled_status/dev-options.json", "--file", "previews/live.png"],
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "Tests",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "python": "${workspaceFolder}/.venv/bin/python"
+    }
+  ],
+  "compounds": [
+    { "name": "Previews then tests", "configurations": ["OLED: render previews", "Tests"], "stopAll": true }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "pages": ["clock", "weather", "people", "locks", "heating", "bins", "media", "ups", "mood", "starfield"],
+  "weather": "weather.forecast_home",
+  "persons": [],
+  "locks": [],
+  "bins": [],
+  "leak_sensors": []
+}

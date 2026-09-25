@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+previews/
+node_modules/
+.env
+.env.*
+!.env.example
+*.img
+*.img.xz

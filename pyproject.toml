@@ -1,0 +1,75 @@
+# ------------------------------------------------------------------------------
+# File: pyproject.toml
+# Project: home-assistant-setup
+# Last modified: 2026-09-25
+#
+# Copyright 2026 TGTGamer - All Rights Reserved
+#
+# Licensed under the Fair Core License, Version 1.0, MIT Future License
+# (FCL-1.0-MIT); you may not use this file except in compliance with the
+# License in the LICENSE file at the root of this repository. Each version
+# becomes available under the MIT license on the second anniversary of the
+# date it is made available.
+#
+# You must not move, change, disable, or circumvent any license key
+# functionality in this software, or modify it to remove protected
+# functionality.
+#
+# Contributions are made under the TGTGamer Cooperation Commitment in
+# CONTRIBUTING.md, and everyone taking part follows CODE_OF_CONDUCT.md.
+#
+# DELETING THIS NOTICE AUTOMATICALLY VOIDS YOUR LICENSE
+# ------------------------------------------------------------------------------
+
+# Workspace root: development tooling only. The app itself is `oled_status/`.
+[project]
+name = "home-assistant-setup"
+version = "0.0.0"
+requires-python = ">=3.13"
+dependencies = ["oled-status"]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.18",
+    "pip-licenses>=5.0",
+    "pytest>=8.4",
+    "ruff>=0.13",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+oled-status = { workspace = true }
+
+[tool.uv.workspace]
+members = ["oled_status"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["externals"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF", "N"]
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["oled_status", "conftest"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.mypy]
+strict = true
+python_version = "3.13"
+files = ["oled_status/src", "tests", "scripts"]
+exclude = ["externals/"]
+
+[[tool.mypy.overrides]]
+module = ["luma.*"]
+ignore_missing_imports = true

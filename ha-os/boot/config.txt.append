@@ -1,0 +1,11 @@
+# home-assistant-setup: begin
+# RaspBee II Zigbee board on the full UART; Bluetooth moves to the mini UART.
+enable_uart=1
+# The mini UART's clock follows the VPU core clock, so fix it at the standard
+# speed or Bluetooth on the mini UART is unreliable (Raspberry Pi docs).
+core_freq=250
+dtoverlay=miniuart-bt
+# I2C for the OLED display and the UPS Plus hat.
+dtparam=i2c1=on
+dtparam=i2c_arm=on
+# home-assistant-setup: end
