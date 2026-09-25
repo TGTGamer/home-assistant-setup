@@ -25,13 +25,36 @@
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from typing import Final
 
 SUPERVISOR_URL: Final = "http://supervisor/core/api"
+
+
+def safe_for_token(url: str) -> bool:
+    """True when a bearer token may be sent to `url` without crossing a network in clear.
+
+    HTTPS is always fine. Plain HTTP is only allowed to this machine (localhost
+    or a loopback address), for example through an SSH tunnel. The Supervisor's
+    internal `http://supervisor` URL is handled separately and never comes
+    from user input.
+    """
+    parts = urllib.parse.urlsplit(url)
+    if parts.scheme == "https":
+        return bool(parts.hostname)
+    if parts.scheme != "http" or not parts.hostname:
+        return False
+    if parts.hostname == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(parts.hostname).is_loopback
+    except ValueError:
+        return False
 
 
 @dataclass(frozen=True)
@@ -89,8 +112,8 @@ class HomeAssistant:
     """Fetches every entity state in one request.
 
     Inside the app it uses the Supervisor proxy and `SUPERVISOR_TOKEN`. For
-    local development set `HA_URL` (for example `http://homeassistant.local:8123`)
-    and `HA_TOKEN` (a long-lived access token).
+    local development set `HA_URL` (an `https://` URL, or `http://localhost`
+    through an SSH tunnel) and `HA_TOKEN` (a long-lived access token).
     """
 
     def __init__(self, base_url: str, token: str, timeout: float = 10.0) -> None:
@@ -107,6 +130,11 @@ class HomeAssistant:
         url, token = os.environ.get("HA_URL"), os.environ.get("HA_TOKEN")
         if not url or not token:
             raise RuntimeError("set SUPERVISOR_TOKEN (inside HA) or HA_URL and HA_TOKEN")
+        if not safe_for_token(url):
+            raise RuntimeError(
+                "HA_URL must be https://, or http:// to localhost through a tunnel, "
+                "so the token is never sent in clear text"
+            )
         return cls(f"{url.rstrip('/')}/api", token)
 
     def states(self) -> States:

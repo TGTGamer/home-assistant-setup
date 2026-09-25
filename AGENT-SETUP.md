@@ -7,7 +7,7 @@
 ## Env
 | Var | Req | Source |
 |---|---|---|
-| `HA_URL` | optional, `pnpm dev` only | Home Assistant base URL, like `http://homeassistant.local:8123` |
+| `HA_URL` | optional, `pnpm dev` only | `https://` Home Assistant URL, or `http://localhost:8123` via SSH tunnel; LAN `http://` refused |
 | `HA_TOKEN` | optional, `pnpm dev` only | HA long-lived access token (HA profile page); keep in Proton Pass, inject with `pass-cli run` |
 | `SUPERVISOR_TOKEN` | never set by hand | Injected by Supervisor inside app |
 
