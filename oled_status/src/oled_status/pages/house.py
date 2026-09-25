@@ -42,6 +42,7 @@ from oled_status.pages.common import (
 
 
 def _people(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
+    """Up to four people as icons, filled when home, with how many are in."""
     people = frame.snapshot.people
     home = sum(person.home for person in people)
     header(draw, "person", f"Home: {home} of {len(people)}")
@@ -54,6 +55,7 @@ def _people(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
 
 
 def _locks(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
+    """Each lock with its icon and state, and a count of unlocked ones."""
     locks = frame.snapshot.locks
     open_count = sum(not lock.secure for lock in locks)
     header(
@@ -72,6 +74,7 @@ def _locks(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
 
 
 def _heating(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
+    """Current and target temperature, with a flickering flame while heating."""
     heating = frame.snapshot.heating
     if heating is None:
         return
@@ -85,6 +88,7 @@ def _heating(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
 
 
 def _bins(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
+    """The next collections, soonest first."""
     bins = frame.snapshot.bins
     header(draw, "bin", f"Bins: {days_label(bins[0].days)}")
     for row, item in enumerate(bins[:3]):
@@ -95,6 +99,7 @@ def _bins(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
 
 
 def _ups(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
+    """Battery gauge and percentage, and whether it is on mains or battery."""
     ups = frame.snapshot.ups
     if ups is None:
         return
@@ -109,6 +114,7 @@ def _ups(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
 
 
 def _mood(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
+    """A face that smiles when all is well and frowns while alerts are active."""
     worried = bool(frame.alerts)
     blink = frame.tick % 40 >= 38
     draw.ellipse((34, 2, 94, 62), outline="white", width=2)

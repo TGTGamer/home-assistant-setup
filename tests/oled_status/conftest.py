@@ -27,8 +27,10 @@ from oled_status.ha import State, States
 
 
 def state(entity_id: str, value: str, /, **attributes: object) -> State:
+    """Build a State; attributes are keyword arguments."""
     return State(entity_id, value, dict(attributes))
 
 
 def states(*items: State) -> States:
+    """Index States by entity ID, as `/api/states` parsing does."""
     return {item.entity_id: item for item in items}

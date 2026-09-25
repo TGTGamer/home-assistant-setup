@@ -50,6 +50,7 @@ STAR_SPREAD = 4
 
 
 def _clock(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
+    """Large time with a blinking colon, the date, and a weather icon in the corner."""
     now = frame.snapshot.now
     colon = ":" if frame.tick // TICKS_PER_SECOND % 2 == 0 else " "
     centred(draw, 4, now.strftime(f"%H{colon}%M"), 34)
@@ -59,6 +60,7 @@ def _clock(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
 
 
 def _weather(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
+    """Big condition icon, temperature and a readable condition name."""
     weather = frame.snapshot.weather
     if weather is None:
         return
@@ -69,6 +71,7 @@ def _weather(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
 
 
 def _media(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
+    """Now playing: scrolling title with the artist underneath."""
     media = frame.snapshot.media
     if media is None:
         return
@@ -95,11 +98,13 @@ def star_positions(tick: int) -> list[tuple[int, int, int]]:
 
 
 def _starfield(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
+    """Stars flying towards the viewer; also moves every pixel against burn-in."""
     for x, y, size in star_positions(frame.tick):
         draw.rectangle((x, y, x + size - 1, y + size - 1), fill="white")
 
 
 def _alert(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
+    """The most urgent alert, flashing inverted when it is critical."""
     alert = frame.alerts[0]
     flash = alert.level is Level.CRITICAL and frame.tick // 5 % 2 == 1
     if flash:

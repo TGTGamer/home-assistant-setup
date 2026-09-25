@@ -35,6 +35,7 @@ from oled_status.ha import HomeAssistant
 
 
 def main() -> None:
+    """Parse arguments, then render previews or run the display loop."""
     parser = argparse.ArgumentParser(prog="oled_status", description=__doc__)
     parser.add_argument("--options", type=Path, default=settings.OPTIONS_PATH)
     parser.add_argument("--preview", type=Path, help="render sample pages to this folder and exit")

@@ -37,22 +37,29 @@ _DAYS = re.compile(r"(\d+)")
 
 @dataclass(frozen=True)
 class Person:
+    """Someone the people page and away alerts track."""
+
     name: str
     home: bool
 
 
 @dataclass(frozen=True)
 class Lock:
+    """A lock and its raw Home Assistant state."""
+
     name: str
     state: str
 
     @property
     def secure(self) -> bool:
+        """Only `locked` counts; unlocked, jammed or open do not."""
         return self.state == "locked"
 
 
 @dataclass(frozen=True)
 class Heating:
+    """Thermostat readings; `active` while the boiler is calling for heat."""
+
     current: float | None
     target: float | None
     active: bool
@@ -60,18 +67,24 @@ class Heating:
 
 @dataclass(frozen=True)
 class Bin:
+    """A waste collection and the days until it."""
+
     name: str
     days: int
 
 
 @dataclass(frozen=True)
 class Media:
+    """What a media player is currently playing."""
+
     title: str
     artist: str
 
 
 @dataclass(frozen=True)
 class Weather:
+    """Current condition and temperature from a weather entity."""
+
     condition: str
     temperature: float | None
     unit: str
@@ -79,6 +92,8 @@ class Weather:
 
 @dataclass(frozen=True)
 class Ups:
+    """UPS battery level; `charging` is None when no charging entity is set."""
+
     percent: float
     charging: bool | None
 
@@ -101,6 +116,7 @@ class Snapshot:
 
     @property
     def anyone_home(self) -> bool:
+        """True when at least one tracked person is home."""
         return any(person.home for person in self.people)
 
 
@@ -136,6 +152,7 @@ def bin_days(state: State, today: date) -> int | None:
 
 
 def _usable(state: State | None) -> State | None:
+    """The state, or None when missing, unknown or unavailable."""
     if state is None or state.state in ("unknown", "unavailable"):
         return None
     return state
@@ -145,6 +162,7 @@ def build(states: States, settings: Settings, now: datetime) -> Snapshot:
     """Build a Snapshot from the current states."""
 
     def get(entity_id: str) -> State | None:
+        """State for a configured entity ID, or None when unset or unusable."""
         return _usable(states.get(entity_id)) if entity_id else None
 
     people = tuple(

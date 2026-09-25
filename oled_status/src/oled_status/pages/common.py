@@ -67,6 +67,7 @@ def font(size: int) -> Font:
 
 
 def text_width(text: str, size: int) -> int:
+    """Rendered width in pixels of `text` at `size`."""
     left, _top, right, _bottom = font(size).getbbox(text)
     return int(right - left)
 
@@ -81,6 +82,7 @@ def fit(text: str, size: int, width: int) -> str:
 
 
 def centred(draw: ImageDraw.ImageDraw, y: int, text: str, size: int) -> None:
+    """Draw `text` horizontally centred at height `y`, shortened to fit."""
     text = fit(text, size, WIDTH)
     draw.text(((WIDTH - text_width(text, size)) // 2, y), text, font=font(size), fill="white")
 
@@ -105,10 +107,12 @@ def marquee(draw: ImageDraw.ImageDraw, y: int, text: str, size: int, tick: int) 
 
 
 def days_label(days: int, short: bool = False) -> str:
+    """Human label for days until a collection; `short` fits a table column."""
     if short:
         return {0: "Today", 1: "Tmrw"}.get(days, f"{days} days")
     return {0: "Today", 1: "Tomorrow"}.get(days, f"In {days} days")
 
 
 def degrees(value: float | None) -> str:
+    """Temperature with a degree sign, dropping a trailing `.0`; `--` if unknown."""
     return "--" if value is None else f"{value:.1f}".removesuffix(".0") + "°"

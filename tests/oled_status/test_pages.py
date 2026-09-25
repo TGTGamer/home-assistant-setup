@@ -39,6 +39,7 @@ from oled_status.settings import Settings
 
 @pytest.mark.parametrize("name", sorted(preview.frames()))
 def test_every_sample_page_draws_something(name: str) -> None:
+    """Every page renders a non-blank 128x64 image from the samples."""
     frame = preview.frames()[name]
     page = "alert" if name.startswith("alert") else name
     image = render(page, frame)
@@ -48,6 +49,7 @@ def test_every_sample_page_draws_something(name: str) -> None:
 
 @pytest.mark.parametrize("name", sorted(PAGES))
 def test_pages_survive_an_empty_house(name: str) -> None:
+    """Pages that claim relevance with no data still render without errors."""
     empty = replace(
         preview.sample(),
         people=(),
@@ -65,6 +67,7 @@ def test_pages_survive_an_empty_house(name: str) -> None:
 
 
 def test_icons_are_square_and_draw() -> None:
+    """Every icon draws, and every weather condition maps to a real icon."""
     for name in icons.names():
         image = Image.new("1", (icons.SIZE, icons.SIZE))
         icons.draw_icon(ImageDraw.Draw(image), name, 0, 0)
@@ -73,6 +76,7 @@ def test_icons_are_square_and_draw() -> None:
 
 
 def test_fit_shortens_to_width() -> None:
+    """Long text gets an ellipsis and fits; short text is untouched."""
     text = fit("A very long front door name indeed", 11, 60)
     assert text.endswith("...")
     assert text_width(text, 11) <= 60
@@ -80,12 +84,14 @@ def test_fit_shortens_to_width() -> None:
 
 
 def test_starfield_moves_and_stays_on_screen() -> None:
+    """Stars move over time and never leave the screen."""
     first, later = star_positions(0), star_positions(10)
     assert first != later
     assert all(0 <= x < WIDTH and 0 <= y < HEIGHT for x, y, _ in first + later)
 
 
 def test_rotation_skips_irrelevant_pages_and_interleaves_alerts() -> None:
+    """Empty pages are skipped, and alerts take every other slot."""
     settings = Settings(pages=("clock", "media", "locks"), page_seconds=5)
     snapshot = replace(preview.sample(), media=None)
     quiet = Frame(snapshot)
@@ -105,6 +111,7 @@ def test_rotation_skips_irrelevant_pages_and_interleaves_alerts() -> None:
 
 
 def test_rotation_falls_back_to_clock_and_can_go_dark() -> None:
+    """The clock shows when nothing else can, and night can go dark."""
     settings = Settings(pages=("media",), screen_off_at_night=True)
     snapshot = replace(preview.sample(), media=None)
     assert rotation.choose(settings, Frame(snapshot), 0) == "clock"
@@ -112,6 +119,7 @@ def test_rotation_falls_back_to_clock_and_can_go_dark() -> None:
 
 
 def test_preview_writes_contact_sheet(tmp_path: Path) -> None:
+    """Previews write one PNG per page plus the contact sheet."""
     written = preview.write(tmp_path)
     assert tmp_path / "all.png" in written
     assert all(path.exists() for path in written)

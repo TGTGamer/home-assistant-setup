@@ -35,15 +35,23 @@ from oled_status.settings import Settings
 
 
 class Screen(Protocol):
-    def show(self, image: Image.Image) -> None: ...
-    def contrast(self, level: int) -> None: ...
-    def off(self) -> None: ...
+    """What the display loop draws on: the OLED, or a PNG file during development."""
+
+    def show(self, image: Image.Image) -> None:
+        """Put a 128x64 1-bit image on the screen."""
+
+    def contrast(self, level: int) -> None:
+        """Set brightness, 0 to 255."""
+
+    def off(self) -> None:
+        """Blank the screen until the next `show`."""
 
 
 class Oled:
     """SSD1306 over I2C, driven by luma.oled."""
 
     def __init__(self, settings: Settings) -> None:
+        """Open the display on the configured I2C bus, address and rotation."""
         from luma.core.interface.serial import i2c  # hardware-only import
         from luma.oled.device import ssd1306
 
@@ -53,17 +61,20 @@ class Oled:
         self._on = True
 
     def show(self, image: Image.Image) -> None:
+        """Send the image to the panel, waking it first if it was blanked."""
         if not self._on:
             self._device.show()
             self._on = True
         self._device.display(image)
 
     def contrast(self, level: int) -> None:
+        """Set panel brightness, skipping the I2C write when unchanged."""
         if level != self._level:
             self._device.contrast(level)
             self._level = level
 
     def off(self) -> None:
+        """Turn the panel off; the next `show` turns it back on."""
         if self._on:
             self._device.hide()
             self._on = False
@@ -73,16 +84,20 @@ class FileScreen:
     """Writes each frame to a PNG, scaled up so it is easy to look at."""
 
     def __init__(self, path: Path, scale: int = 4) -> None:
+        """Write frames to `path`, enlarged `scale` times for easy viewing."""
         self._path = path
         self._scale = scale
         path.parent.mkdir(parents=True, exist_ok=True)
 
     def show(self, image: Image.Image) -> None:
+        """Save the frame as a greyscale PNG, replacing the previous one."""
         size = (WIDTH * self._scale, HEIGHT * self._scale)
         image.convert("L").resize(size, Image.Resampling.NEAREST).save(self._path)
 
     def contrast(self, level: int) -> None:
+        """Brightness has no meaning for a PNG, so this does nothing."""
         return None
 
     def off(self) -> None:
+        """Save an all-black frame, as the dark OLED would look."""
         self.show(Image.new("1", (WIDTH, HEIGHT)))

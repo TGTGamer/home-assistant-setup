@@ -40,10 +40,12 @@ NOW = datetime(2026, 9, 25, 21, 0)
     [(time(22, 59), False), (time(23, 0), True), (time(3, 0), True), (time(7, 0), False)],
 )
 def test_night_window_crosses_midnight(moment: time, expected: bool) -> None:
+    """A 23:00 to 07:00 window covers late evening and early morning."""
     assert is_night(moment, time(23, 0), time(7, 0)) is expected
 
 
 def test_night_window_same_day() -> None:
+    """A window within one day covers only its hours."""
     assert is_night(time(14, 0), time(13, 0), time(15, 0))
     assert not is_night(time(16, 0), time(13, 0), time(15, 0))
 
@@ -63,10 +65,12 @@ def test_night_window_same_day() -> None:
     ],
 )
 def test_bin_days_formats(value: str, attributes: dict[str, object], expected: int | None) -> None:
+    """Every supported waste-collection state format gives the right days."""
     assert bin_days(state("sensor.bin", value, **attributes), date(2026, 9, 25)) == expected
 
 
 def test_build_reads_configured_entities_only() -> None:
+    """Only configured entities appear, light groups and ignored lights are skipped."""
     settings = Settings(
         persons=("person.a", "person.b"),
         locks=("lock.front", "lock.missing"),
@@ -121,6 +125,7 @@ def test_build_reads_configured_entities_only() -> None:
 
 
 def test_build_ignores_unavailable_and_paused_player() -> None:
+    """Unavailable entities and paused players produce no data."""
     settings = Settings(climate="climate.hall", media_player="media_player.tv")
     snapshot = build(
         states(state("climate.hall", "unavailable"), state("media_player.tv", "paused")),
@@ -132,6 +137,7 @@ def test_build_ignores_unavailable_and_paused_player() -> None:
 
 
 def test_parse_states_skips_malformed_items() -> None:
+    """Malformed state items are skipped; a non-list payload is an error."""
     parsed = parse_states(
         [
             {"entity_id": "light.a", "state": "on", "attributes": {"friendly_name": "A"}},

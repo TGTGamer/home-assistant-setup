@@ -33,6 +33,7 @@ EVENING = datetime(2026, 9, 25, 18, 0)
 
 
 def base() -> Snapshot:
+    """An evening at home with one unlocked door and a light on."""
     return Snapshot(
         now=EVENING,
         night=False,
@@ -43,27 +44,33 @@ def base() -> Snapshot:
 
 
 def titles(snapshot: Snapshot) -> list[str]:
+    """Alert titles in priority order."""
     return [alert.title for alert in current(snapshot)]
 
 
 def test_nothing_to_say_when_home_in_the_evening() -> None:
+    """Unlocked doors and lights are fine while someone is home before night."""
     assert titles(base()) == []
 
 
 def test_night_flags_unlocked_doors_and_lights() -> None:
+    """At night, unlocked doors and lights on both alert."""
     assert titles(replace(base(), night=True)) == ["Unlocked", "Lights on"]
 
 
 def test_everyone_out_flags_unlocked_doors_and_lights() -> None:
+    """With everyone out, unlocked doors and lights both alert."""
     snapshot = replace(base(), people=(Person("A", home=False),))
     assert titles(snapshot) == ["Unlocked", "Lights on"]
 
 
 def test_no_people_configured_means_no_away_alerts() -> None:
+    """Without people configured, nobody is ever assumed out."""
     assert titles(replace(base(), people=())) == []
 
 
 def test_critical_alerts_come_first() -> None:
+    """Leaks and running on battery outrank warnings."""
     snapshot = replace(base(), night=True, leaks=("Sink",), ups=Ups(40, charging=False))
     alerts = current(snapshot)
     assert [alert.level for alert in alerts][:2] == [Level.CRITICAL, Level.CRITICAL]
@@ -72,6 +79,7 @@ def test_critical_alerts_come_first() -> None:
 
 
 def test_bin_reminder_only_the_evening_before() -> None:
+    """The bin alert shows from 17:00 the day before, and not otherwise."""
     snapshot = replace(base(), locks=(), lights_on=(), bins=(Bin("Recycling", 1),))
     assert titles(snapshot) == ["Bins out tonight"]
     assert titles(replace(snapshot, now=datetime(2026, 9, 25, 12, 0))) == []
@@ -79,5 +87,6 @@ def test_bin_reminder_only_the_evening_before() -> None:
 
 
 def test_long_name_lists_are_shortened() -> None:
+    """More than three names collapse to `+N`."""
     snapshot = replace(base(), night=True, locks=(), lights_on=("A", "B", "C", "D", "E"))
     assert current(snapshot)[0].detail == "A, B, C +2"

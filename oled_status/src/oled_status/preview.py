@@ -58,6 +58,7 @@ def sample() -> Snapshot:
 
 
 def frames() -> dict[str, Frame]:
+    """One sample frame per page, plus a night alert and a flashing critical alert."""
     snapshot = sample()
     night = replace(snapshot, night=True)
     leak = replace(snapshot, leaks=("Kitchen sink",))

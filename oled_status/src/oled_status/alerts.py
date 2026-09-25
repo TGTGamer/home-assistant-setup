@@ -34,6 +34,8 @@ BIN_REMINDER_FROM_HOUR = 17
 
 
 class Level(IntEnum):
+    """How urgent an alert is; higher sorts first and CRITICAL flashes."""
+
     INFO = 1
     WARNING = 2
     CRITICAL = 3
@@ -41,6 +43,8 @@ class Level(IntEnum):
 
 @dataclass(frozen=True)
 class Alert:
+    """One thing needing attention: an icon, a short title and the names involved."""
+
     level: Level
     icon: str
     title: str
@@ -48,6 +52,7 @@ class Alert:
 
 
 def _names(names: tuple[str, ...], limit: int = 3) -> str:
+    """Join names for a one-line detail, collapsing the tail into `+N`."""
     shown = ", ".join(names[:limit])
     return shown if len(names) <= limit else f"{shown} +{len(names) - limit}"
 

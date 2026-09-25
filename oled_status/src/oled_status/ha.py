@@ -94,6 +94,7 @@ class HomeAssistant:
     """
 
     def __init__(self, base_url: str, token: str, timeout: float = 10.0) -> None:
+        """Target `base_url` (ending in `/api`) with a bearer `token`."""
         self._base_url = base_url.rstrip("/")
         self._token = token
         self._timeout = timeout
