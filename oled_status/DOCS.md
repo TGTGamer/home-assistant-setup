@@ -67,7 +67,7 @@ page or alert off.
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `i2c_port` | `1` | I2C bus |
+| `i2c_port` | `1` | I2C bus. The app is given `/dev/i2c-1`; another bus also needs `devices` in `config.yaml` changed |
 | `i2c_address` | `0x3C` | Display address; some use `0x3D` |
 | `rotate` | `0` | 0 to 3, in quarter turns |
 | `contrast` | `255` | Daytime brightness, 0 to 255 |

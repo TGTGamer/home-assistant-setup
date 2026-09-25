@@ -30,10 +30,9 @@ arch:
   - aarch64
   - amd64
 init: false
-startup: application
-boot: auto
 homeassistant_api: true
-i2c: true
+devices:
+  - /dev/i2c-1
 options:
   i2c_port: 1
   i2c_address: "0x3C"
