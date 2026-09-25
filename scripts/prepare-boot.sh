@@ -39,6 +39,11 @@ if [ -z "$MOUNT" ]; then
   udisksctl mount -b "$PART" >/dev/null
   MOUNT=$(lsblk -no MOUNTPOINT "$PART" | head -1)
 fi
+# Never fall back to an empty path: "$MOUNT/config.txt" would become /config.txt.
+if [ -z "$MOUNT" ] || [ "$MOUNT" = / ] || [ ! -f "$MOUNT/config.txt" ]; then
+  echo "Could not find $PART mounted with a config.txt (mount point: '${MOUNT}')." >&2
+  exit 1
+fi
 echo "Boot partition: $PART at $MOUNT"
 
 if grep -q "home-assistant-setup: begin" "$MOUNT/config.txt"; then

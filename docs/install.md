@@ -20,20 +20,22 @@ Before anything else, while the old system still runs:
 3. Copy the whole card to an image (about 30 GB):
 
    ```sh
-   scripts/pi-flash.sh backup ~/pi-backup-$(date +%F).img
+   scripts/pi-flash.sh list                                   # find the card, for example /dev/sdd
+   scripts/pi-flash.sh backup /dev/sdX ~/pi-backup-$(date +%F).img
    ```
 
 Keep the old card untouched in a drawer; it and the image are the way back.
 
 ## 2. Write HA OS to the new card
 
-Insert the new card (only one USB disk may be attached) and run:
+Insert the new card, find it with `scripts/pi-flash.sh list`, and run:
 
 ```sh
-scripts/pi-flash.sh flash          # downloads the latest rpi4-64 image
+scripts/pi-flash.sh flash /dev/sdX   # downloads the latest rpi4-64 image
 ```
 
-It asks you to type `yes` before erasing the card.
+It only accepts a removable disk, and asks you to type the device path again
+before erasing it.
 
 ## 3. Add the boot settings
 
@@ -58,8 +60,10 @@ loads the I2C modules. Rerunning it changes nothing.
 
 1. Settings, Apps: install **Advanced SSH & Web Terminal**. Add your public
    key; keep any password in Proton Pass.
-2. Check I2C from the terminal: `ls /dev/i2c-*` should list `/dev/i2c-1`. If
-   not, install the **HassOS I2C Configurator** app and reboot the host twice.
+2. Check I2C on the host. The SSH app's terminal runs in its own container,
+   which does not see `/dev/i2c-1`, so ask the Supervisor instead:
+   `ha hardware info | grep i2c` should list `/dev/i2c-1`. Only if it does not,
+   install the **HassOS I2C Configurator** app and reboot the host twice.
 
 ## 6. Zigbee
 

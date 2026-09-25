@@ -24,37 +24,83 @@
 
 # Back up an SD card to an image, or write Home Assistant OS to one.
 #
-#   scripts/pi-flash.sh backup IMAGE     copy the whole card to IMAGE
-#   scripts/pi-flash.sh flash [BOARD]    download and write HA OS (default rpi4-64)
+#   scripts/pi-flash.sh list                     show removable disks
+#   scripts/pi-flash.sh backup DEVICE IMAGE      copy the whole card to IMAGE
+#   scripts/pi-flash.sh flash DEVICE [BOARD]     download and write HA OS (default rpi4-64)
 #
-# Exactly one USB disk (the card reader) must be attached. Uses sudo in a
-# terminal and pkexec (a desktop password prompt) otherwise.
+# DEVICE is the whole card, for example /dev/sdd or /dev/mmcblk0; find it with
+# `list`. It must be a removable disk. Flashing asks you to type DEVICE again;
+# without a terminal, set CONFIRM_ERASE to the same path instead. Uses sudo in
+# a terminal and pkexec (a desktop password prompt) otherwise.
 set -euo pipefail
 
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/home-assistant-setup"
 if [ -t 0 ]; then AS_ROOT=sudo; else AS_ROOT=pkexec; fi
 
-mapfile -t DEVS < <(lsblk -dnpo NAME,TRAN | awk '$2=="usb"{print $1}')
-[ "${#DEVS[@]}" -eq 1 ] || { echo "Expected exactly one USB disk, found: ${DEVS[*]:-none}" >&2; exit 1; }
-DEV=${DEVS[0]}
-SIZE_GB=$(( $(lsblk -dnbo SIZE "$DEV") / 1000000000 ))
-echo "Card: $DEV (${SIZE_GB} GB, $(lsblk -dno MODEL "$DEV" | xargs))"
+usage() {
+  echo "usage: $0 list | backup DEVICE IMAGE | flash DEVICE [BOARD]" >&2
+  exit 1
+}
 
+list_disks() {
+  lsblk -dpo NAME,SIZE,RM,TRAN,MODEL | awk 'NR==1 || $3=="1"'
+}
+
+# Check DEVICE is a whole, removable disk and print what it is.
+check_device() {
+  local dev=$1
+  [ -b "$dev" ] || { echo "$dev is not a block device" >&2; exit 1; }
+  [ "$(lsblk -dno TYPE "$dev")" = disk ] || { echo "$dev is a partition; give the whole disk" >&2; exit 1; }
+  [ "$(lsblk -dno RM "$dev" | tr -d ' ')" = 1 ] || {
+    echo "$dev is not a removable disk; refusing. Removable disks:" >&2
+    list_disks >&2
+    exit 1
+  }
+  echo "Card: $dev ($(lsblk -dno SIZE "$dev" | xargs), $(lsblk -dno MODEL "$dev" | xargs))"
+}
+
+# Unmount every mounted partition of DEVICE, then prove none is still mounted.
+# Mount points are read one per line, so paths with spaces are handled.
 unmount_all() {
-  for part in $(lsblk -lnpo NAME,MOUNTPOINT "$DEV" | awk 'NF==2{print $1}'); do
-    udisksctl unmount -b "$part"
-  done
+  local dev=$1 part
+  while IFS= read -r part; do
+    if [ -n "$(lsblk -nro MOUNTPOINTS "$part" | tr -d '\n')" ]; then
+      udisksctl unmount -b "$part"
+    fi
+  done < <(lsblk -lnpo NAME "$dev" | tail -n +2)
+  if [ -n "$(lsblk -nro MOUNTPOINTS "$dev" | tr -d '\n')" ]; then
+    echo "Something on $dev is still mounted; not touching it:" >&2
+    lsblk -po NAME,MOUNTPOINTS "$dev" >&2
+    exit 1
+  fi
+}
+
+confirm_erase() {
+  local dev=$1 what=$2 typed
+  if [ -t 0 ]; then
+    read -rp "ERASE everything on $dev and write $what? Type $dev to confirm: " typed
+    [ "$typed" = "$dev" ] || { echo "Not confirmed; nothing written." >&2; exit 1; }
+  elif [ "${CONFIRM_ERASE:-}" != "$dev" ]; then
+    echo "Not a terminal: set CONFIRM_ERASE=$dev to confirm erasing this disk." >&2
+    exit 1
+  fi
 }
 
 case "${1:-}" in
+  list)
+    list_disks ;;
   backup)
-    out=${2:?usage: $0 backup IMAGE}
-    unmount_all
-    $AS_ROOT dd if="$DEV" of="$out" bs=4M status=progress conv=fsync
+    dev=${2:-}; out=${3:-}
+    [ -n "$dev" ] && [ -n "$out" ] || usage
+    check_device "$dev"
+    unmount_all "$dev"
+    $AS_ROOT dd if="$dev" of="$out" bs=4M status=progress conv=fsync
     $AS_ROOT chown "$(id -u):$(id -g)" "$out"
     echo "Backup saved to $out" ;;
   flash)
-    board=${2:-rpi4-64}
+    dev=${2:-}; board=${3:-rpi4-64}
+    [ -n "$dev" ] || usage
+    check_device "$dev"
     mkdir -p "$CACHE"
     tag=$(curl -fsSL https://api.github.com/repos/home-assistant/operating-system/releases/latest \
       | python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])')
@@ -65,17 +111,11 @@ case "${1:-}" in
       xz -t "$image.part" && mv "$image.part" "$image"
     fi
     echo "Image: $image"
-    if [ -t 0 ]; then
-      read -rp "ERASE everything on $DEV and write HA OS ${tag}? Type yes: " ok
-      [ "$ok" = yes ] || exit 1
-    elif [ "${CONFIRM_ERASE:-}" != "$DEV" ]; then
-      echo "Not a terminal: set CONFIRM_ERASE=$DEV to confirm erasing this disk." >&2
-      exit 1
-    fi
-    unmount_all
-    xz -dc "$image" | $AS_ROOT dd of="$DEV" bs=4M status=progress conv=fsync
-    $AS_ROOT partprobe "$DEV" || true
+    confirm_erase "$dev" "HA OS ${tag}"
+    unmount_all "$dev"
+    xz -dc "$image" | $AS_ROOT dd of="$dev" bs=4M status=progress conv=fsync
+    $AS_ROOT partprobe "$dev" || true
     sync
-    echo "HA OS ${tag} written to $DEV. Next: scripts/prepare-boot.sh" ;;
-  *) echo "usage: $0 backup IMAGE | flash [BOARD]" >&2; exit 1 ;;
+    echo "HA OS ${tag} written to $dev. Next: scripts/prepare-boot.sh" ;;
+  *) usage ;;
 esac
