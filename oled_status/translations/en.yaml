@@ -1,0 +1,87 @@
+# ------------------------------------------------------------------------------
+# File: oled_status/translations/en.yaml
+# Project: home-assistant-setup
+# Last modified: 2026-09-25
+#
+# Copyright 2026 TGTGamer - All Rights Reserved
+#
+# Licensed under the Fair Core License, Version 1.0, MIT Future License
+# (FCL-1.0-MIT); you may not use this file except in compliance with the
+# License in the LICENSE file at the root of this repository. Each version
+# becomes available under the MIT license on the second anniversary of the
+# date it is made available.
+#
+# You must not move, change, disable, or circumvent any license key
+# functionality in this software, or modify it to remove protected
+# functionality.
+#
+# Contributions are made under the TGTGamer Cooperation Commitment in
+# CONTRIBUTING.md, and everyone taking part follows CODE_OF_CONDUCT.md.
+#
+# DELETING THIS NOTICE AUTOMATICALLY VOIDS YOUR LICENSE
+# ------------------------------------------------------------------------------
+
+configuration:
+  i2c_port:
+    name: I2C bus
+    description: Bus number the OLED is on. 1 on a Raspberry Pi.
+  i2c_address:
+    name: I2C address
+    description: Usually 0x3C; some displays use 0x3D.
+  rotate:
+    name: Rotation
+    description: 0 normal, 1 turns 90 degrees, 2 upside down, 3 turns 270 degrees.
+  contrast:
+    name: Daytime brightness
+    description: 0 to 255.
+  night_contrast:
+    name: Night brightness
+    description: 0 to 255, used between the night start and end times.
+  night_start:
+    name: Night starts
+    description: 24-hour time, for example 23:00.
+  night_end:
+    name: Night ends
+    description: 24-hour time, for example 07:00.
+  screen_off_at_night:
+    name: Screen off at night
+    description: Keep the screen dark overnight unless there is an alert.
+  page_seconds:
+    name: Seconds per page
+    description: How long each page stays on screen.
+  refresh_seconds:
+    name: Refresh interval
+    description: How often to read Home Assistant, in seconds.
+  pages:
+    name: Pages
+    description: Pages to rotate through, in order. Pages with nothing to show are skipped.
+  weather:
+    name: Weather entity
+    description: For example weather.forecast_home.
+  climate:
+    name: Heating entity
+    description: A climate entity, for example your thermostat.
+  media_player:
+    name: Media player
+    description: Shown while it is playing.
+  ups_battery:
+    name: UPS battery sensor
+    description: A sensor reporting the UPS battery percentage.
+  ups_charging:
+    name: UPS charging sensor
+    description: On while mains power is present; off raises an On battery alert.
+  persons:
+    name: People
+    description: person entities to show on the people page and use for away alerts.
+  locks:
+    name: Locks
+    description: lock entities; unlocked at night or while everyone is out raises an alert.
+  bins:
+    name: Bin collection sensors
+    description: Sensors giving days until collection or the next date.
+  leak_sensors:
+    name: Leak sensors
+    description: binary_sensor entities that turn on when water is detected.
+  ignored_lights:
+    name: Lights to ignore
+    description: Lights that may stay on without an alert, such as a night light.
