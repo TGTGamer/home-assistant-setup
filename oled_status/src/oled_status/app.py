@@ -110,7 +110,8 @@ def run(
                     last_success = clock()
                 except (OSError, ValueError) as error:
                     log.warning("could not read states: %s", error)
-                    if snapshot is not None and moment - last_success > stale_after(settings):
+                    # Measured now, after the failed request, which may have taken its full timeout.
+                    if snapshot is not None and clock() - last_success > stale_after(settings):
                         log.warning("dropping states older than %.0fs", stale_after(settings))
                         snapshot = None
                         waiting = "connection lost"

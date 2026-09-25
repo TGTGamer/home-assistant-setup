@@ -104,3 +104,13 @@ def test_redirects_are_refused(redirecting_server: str) -> None:
     """A redirect raises instead of re-sending the token to the new address."""
     with pytest.raises(urllib.error.HTTPError, match="refusing redirect"):
         HomeAssistant(redirecting_server, "token").states()
+
+
+def test_proxies_are_never_used(monkeypatch: pytest.MonkeyPatch, redirecting_server: str) -> None:
+    """HTTP_PROXY is ignored, so a plain-HTTP token never passes through a proxy."""
+    monkeypatch.setenv("HTTP_PROXY", "http://proxy.invalid:3128")
+    monkeypatch.setenv("http_proxy", "http://proxy.invalid:3128")
+    # Reaching the local server (and failing on its redirect) proves the proxy,
+    # which does not resolve, was bypassed.
+    with pytest.raises(urllib.error.HTTPError, match="refusing redirect"):
+        HomeAssistant(redirecting_server, "token").states()

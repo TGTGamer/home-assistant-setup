@@ -134,7 +134,9 @@ class _NoRedirects(urllib.request.HTTPRedirectHandler):
         )
 
 
-_OPENER = urllib.request.build_opener(_NoRedirects)
+# No proxies either: urllib otherwise honours HTTP_PROXY even for localhost,
+# which would hand a plain-HTTP token to the proxy.
+_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirects)
 
 
 class HomeAssistant:

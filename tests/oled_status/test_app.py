@@ -147,3 +147,22 @@ def test_runs_outside_the_main_thread() -> None:
     worker.start()
     worker.join()
     assert errors == []
+
+
+def test_slow_failures_count_towards_staleness() -> None:
+    """A failed request that itself takes past the limit drops the states at once."""
+    # start, frame 1 (fetch ok, then success time), frame 2 (fetch starts at 2 s,
+    # fails, and it is 200 s by the time the failure is seen)
+    times = iter([0.0, 1.0, 1.0, 2.0, 200.0])
+    home = FakeHome([states(state("lock.front", "locked")), OSError("timed out")])
+    screen = FakeScreen()
+    app.run(
+        Settings(refresh_seconds=1, locks=("lock.front",)),
+        home,
+        screen,
+        clock=lambda: next(times),
+        now=lambda: datetime(2026, 9, 25, 12, 0),
+        sleep=lambda _s: None,
+        frames=2,
+    )
+    assert screen.images[-1].tobytes() == app.waiting_image("connection lost").tobytes()
