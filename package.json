@@ -12,6 +12,7 @@
     "typecheck": "uv run mypy",
     "house": "uv run python scripts/house_checks.py",
     "house:fix": "uv run python scripts/house_checks.py --fix",
+    "lock:app": "uv export --package oled-status --no-dev --no-emit-workspace --frozen --quiet -o oled_status/requirements.lock",
     "license-check": "uv run python scripts/license_check.py",
     "preview": "uv run python -m oled_status --preview previews",
     "dev": "uv run python -m oled_status --options oled_status/dev-options.json --file previews/live.png",

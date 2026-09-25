@@ -24,8 +24,12 @@
 FROM ghcr.io/home-assistant/base-python:3.13-alpine3.24
 
 WORKDIR /opt/oled_status
-COPY pyproject.toml README.md ./
+# Exact versions and hashes exported from uv.lock (`pnpm lock:app`), so a
+# rebuild on the Pi installs what CI tested.
+COPY requirements.lock ./
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
+# Run from source: no package build, so no unpinned build backend either.
 COPY src ./src
-RUN pip install --no-cache-dir .
+ENV PYTHONPATH=/opt/oled_status/src
 
 CMD ["python3", "-m", "oled_status"]

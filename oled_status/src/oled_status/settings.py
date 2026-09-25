@@ -85,18 +85,28 @@ class Settings:
 
 
 def _time(raw: object, key: str) -> time:
+    """Parse `HH:MM` into a time, naming `key` in the error."""
     if not isinstance(raw, str) or not (match := _TIME.match(raw)):
         raise SettingsError(f"{key} must be HH:MM, got {raw!r}")
     return time(int(match.group(1)), int(match.group(2)))
 
 
 def _int(raw: object, key: str, low: int, high: int) -> int:
+    """Accept a whole number in `low..high`; booleans are rejected."""
     if isinstance(raw, bool) or not isinstance(raw, int) or not low <= raw <= high:
         raise SettingsError(f"{key} must be a whole number from {low} to {high}, got {raw!r}")
     return raw
 
 
+def _bool(raw: object, key: str) -> bool:
+    """Accept only a real JSON boolean; the string "false" is an error, not True."""
+    if not isinstance(raw, bool):
+        raise SettingsError(f"{key} must be true or false, got {raw!r}")
+    return raw
+
+
 def _str(raw: object, key: str) -> str:
+    """Accept text (or nothing), trimmed."""
     if raw is None:
         return ""
     if not isinstance(raw, str):
@@ -105,6 +115,7 @@ def _str(raw: object, key: str) -> str:
 
 
 def _list(raw: object, key: str) -> tuple[str, ...]:
+    """Accept a list of text, trimmed, with blank entries dropped."""
     if raw is None:
         return ()
     if not isinstance(raw, list) or not all(isinstance(item, str) for item in raw):
@@ -134,7 +145,7 @@ def parse(raw: dict[str, object]) -> Settings:
         ),
         night_start=_time(raw.get("night_start", "23:00"), "night_start"),
         night_end=_time(raw.get("night_end", "07:00"), "night_end"),
-        screen_off_at_night=bool(raw.get("screen_off_at_night", False)),
+        screen_off_at_night=_bool(raw.get("screen_off_at_night", False), "screen_off_at_night"),
         page_seconds=_int(raw.get("page_seconds", base.page_seconds), "page_seconds", 2, 120),
         refresh_seconds=_int(
             raw.get("refresh_seconds", base.refresh_seconds), "refresh_seconds", 1, 300

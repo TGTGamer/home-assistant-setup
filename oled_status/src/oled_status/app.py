@@ -46,8 +46,20 @@ from oled_status.snapshot import Snapshot, build, is_night
 
 log = logging.getLogger(__name__)
 
+MIN_STALE_SECONDS = 60
+
+
+def stale_after(settings: Settings) -> float:
+    """Seconds without a successful fetch before the last states are dropped.
+
+    Three missed refreshes, but never less than a minute, so a single slow
+    request does not blank the screen.
+    """
+    return float(max(MIN_STALE_SECONDS, settings.refresh_seconds * 3))
+
 
 def waiting_image(message: str) -> Image.Image:
+    """A plain screen explaining why no home status is shown."""
     image = Image.new("1", (WIDTH, HEIGHT))
     draw = ImageDraw.Draw(image)
     centred(draw, 18, "Home Assistant", 12)
@@ -56,6 +68,7 @@ def waiting_image(message: str) -> Image.Image:
 
 
 def _stop(_signum: int, _frame: FrameType | None) -> None:
+    """SIGTERM handler: unwind through `run`'s finally block so the screen blanks."""
     raise SystemExit(0)
 
 
@@ -69,11 +82,18 @@ def run(
     sleep: Callable[[float], None] = time.sleep,
     frames: int | None = None,
 ) -> None:
-    """Run until stopped (or for `frames` iterations, for tests)."""
+    """Run until stopped (or for `frames` iterations, for tests).
+
+    If Home Assistant cannot be read for longer than `stale_after`, the last
+    states are dropped and a "connection lost" screen replaces them, so an old
+    snapshot never passes for the current state of locks, leaks or power.
+    """
     signal.signal(signal.SIGTERM, _stop)
     started = clock()
     last_fetch = float("-inf")
+    last_success = float("-inf")
     snapshot: Snapshot | None = None
+    waiting = "connecting..."
     drawn = 0
     try:
         while frames is None or drawn < frames:
@@ -82,11 +102,16 @@ def run(
                 last_fetch = moment
                 try:
                     snapshot = build(home.states(), settings, now())
+                    last_success = moment
                 except (OSError, ValueError) as error:
                     log.warning("could not read states: %s", error)
+                    if snapshot is not None and moment - last_success > stale_after(settings):
+                        log.warning("dropping states older than %.0fs", stale_after(settings))
+                        snapshot = None
+                        waiting = "connection lost"
             drawn += 1
             if snapshot is None:
-                screen.show(waiting_image("connecting..."))
+                screen.show(waiting_image(waiting))
                 sleep(1.0)
                 continue
 

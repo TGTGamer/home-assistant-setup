@@ -34,11 +34,15 @@ from oled_status.settings import Settings
 
 
 class FakeHome(HomeAssistant):
+    """A Home Assistant client that replays scripted results or errors."""
+
     def __init__(self, results: list[States | Exception]) -> None:
+        """Replay `results` in order, repeating the last one."""
         super().__init__("http://test", "token")
         self.results = results
 
     def states(self) -> States:
+        """Return or raise the next scripted result."""
         result = self.results.pop(0) if len(self.results) > 1 else self.results[0]
         if isinstance(result, Exception):
             raise result
@@ -46,22 +50,29 @@ class FakeHome(HomeAssistant):
 
 
 class FakeScreen:
+    """Records what the loop draws instead of driving hardware."""
+
     def __init__(self) -> None:
+        """Start with nothing drawn."""
         self.images: list[Image.Image] = []
         self.levels: list[int] = []
         self.offs = 0
 
     def show(self, image: Image.Image) -> None:
+        """Record the frame."""
         self.images.append(image)
 
     def contrast(self, level: int) -> None:
+        """Record the brightness."""
         self.levels.append(level)
 
     def off(self) -> None:
+        """Count blanking calls."""
         self.offs += 1
 
 
 def run(settings: Settings, home: FakeHome, moment: datetime, frames: int) -> FakeScreen:
+    """Run the loop for `frames` iterations with a one-second-per-frame fake clock."""
     screen = FakeScreen()
     ticks = iter(float(n) for n in range(10_000))
     app.run(
@@ -77,6 +88,7 @@ def run(settings: Settings, home: FakeHome, moment: datetime, frames: int) -> Fa
 
 
 def test_shows_waiting_screen_until_states_arrive_then_recovers() -> None:
+    """A failed first fetch shows the waiting screen, then pages once states arrive."""
     home = FakeHome([OSError("down"), states(state("sun.sun", "above_horizon"))])
     settings = Settings(refresh_seconds=1)
     screen = run(settings, home, datetime(2026, 9, 25, 12, 0), frames=3)
@@ -86,6 +98,7 @@ def test_shows_waiting_screen_until_states_arrive_then_recovers() -> None:
 
 
 def test_night_dims_the_screen() -> None:
+    """Night uses the night brightness."""
     home = FakeHome([states()])
     settings = Settings(night_contrast=3)
     screen = run(settings, home, datetime(2026, 9, 25, 23, 30), frames=2)
@@ -93,8 +106,26 @@ def test_night_dims_the_screen() -> None:
 
 
 def test_screen_off_at_night_when_quiet() -> None:
+    """With screen_off_at_night and no alerts, nothing is drawn overnight."""
     home = FakeHome([states()])
     settings = Settings(screen_off_at_night=True)
     screen = run(settings, home, datetime(2026, 9, 25, 2, 0), frames=2)
     assert screen.images == []
     assert screen.offs == 3
+
+
+def test_drops_stale_states_after_a_long_outage() -> None:
+    """A lock seen before the outage must not keep showing once the data is stale."""
+    ok = states(state("lock.front", "locked"))
+    home = FakeHome([ok, *[OSError("down")] * 200])
+    settings = Settings(refresh_seconds=1, locks=("lock.front",))
+    screen = run(settings, home, datetime(2026, 9, 25, 12, 0), frames=80)
+    waiting = app.waiting_image("connection lost").tobytes()
+    assert app.stale_after(settings) == app.MIN_STALE_SECONDS
+    assert screen.images[1].tobytes() != waiting  # still fresh just after the fetch
+    assert screen.images[-1].tobytes() == waiting
+
+
+def test_stale_limit_scales_with_refresh_interval() -> None:
+    """Slow refresh intervals get three missed refreshes before data is dropped."""
+    assert app.stale_after(Settings(refresh_seconds=40)) == 120

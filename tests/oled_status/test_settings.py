@@ -33,10 +33,12 @@ from oled_status.settings import DEFAULT_PAGES, Settings, SettingsError, load, p
 
 
 def test_defaults_when_options_missing(tmp_path: Path) -> None:
+    """No options file means all defaults."""
     assert load(tmp_path / "missing.json") == Settings()
 
 
 def test_parses_full_options(tmp_path: Path) -> None:
+    """Every option type parses, with entity lists trimmed."""
     path = tmp_path / "options.json"
     path.write_text(
         json.dumps(
@@ -62,6 +64,7 @@ def test_parses_full_options(tmp_path: Path) -> None:
 
 
 def test_empty_page_list_uses_defaults() -> None:
+    """An empty page list falls back to the default pages."""
     assert parse({"pages": []}).pages == DEFAULT_PAGES
 
 
@@ -75,14 +78,18 @@ def test_empty_page_list_uses_defaults() -> None:
         ({"pages": ["clock", "disco"]}, "unknown pages"),
         ({"locks": "lock.front"}, "locks"),
         ({"weather": 3}, "weather"),
+        ({"screen_off_at_night": "false"}, "screen_off_at_night"),
+        ({"screen_off_at_night": 1}, "screen_off_at_night"),
     ],
 )
 def test_rejects_bad_options(options: dict[str, object], message: str) -> None:
+    """Malformed options raise SettingsError naming the option."""
     with pytest.raises(SettingsError, match=message):
         parse(options)
 
 
 def test_rejects_non_object_file(tmp_path: Path) -> None:
+    """An options file that is not a JSON object is rejected."""
     path = tmp_path / "options.json"
     path.write_text("[]")
     with pytest.raises(SettingsError):
