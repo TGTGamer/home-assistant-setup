@@ -11,8 +11,10 @@
 | `HA_TOKEN` | optional, `pnpm dev` only | HA long-lived access token (HA profile page); keep in Proton Pass, inject with `pass-cli run` |
 | `SUPERVISOR_TOKEN` | never set by hand | Injected by Supervisor inside app |
 
+Local: copy `.env.example` to `.env` (gitignored); run `pass-cli run --env-file .env -- pnpm dev`.
+
 ## Network
-- `astral.sh`, `github.com` (uv install)
+- `github.com` (pinned uv release download)
 - `pypi.org`, `files.pythonhosted.org` (deps)
 - `ghcr.io` (Docker base image, CI build only)
 
@@ -28,6 +30,7 @@
 | types | `pnpm typecheck` |
 | headers, dashes | `pnpm house` (fix: `pnpm house:fix`) |
 | licences | `pnpm license-check` |
+| app image lock | `pnpm lock:app` after changing app deps |
 | all | `pnpm verify` |
 | previews | `pnpm preview`, PNGs in `previews/` |
 | live | `pnpm dev`, needs `HA_URL` `HA_TOKEN`, writes `previews/live.png` |
@@ -38,7 +41,7 @@ No ports. No server.
 - `uv run pytest -q` all pass.
 
 ## Runner notes
-- Claude Code web: setup script `scripts/agent-setup.sh`; network Trusted plus `astral.sh`.
+- Claude Code web: setup script `scripts/agent-setup.sh`; network Trusted.
 - Codex cloud: setup and maintenance scripts both `scripts/agent-setup.sh`.
 - Cursor cloud: `.cursor/environment.json`.
 - Copilot: `.github/workflows/copilot-setup-steps.yml`.
@@ -49,5 +52,6 @@ No ports. No server.
 |---|---|---|
 | `uv sync --locked` fails | lock stale | `uv lock`, commit `uv.lock` |
 | `house` fails missing header | new file | `pnpm house:fix` |
+| `house` says requirements.lock out of date | app deps changed | `pnpm lock:app`, commit it |
 | `pnpm dev` RuntimeError set SUPERVISOR_TOKEN | no `HA_URL`/`HA_TOKEN` | export both |
 | Docker build fails locally | no Docker or not aarch64 | CI builds; or build on Pi via app store |
