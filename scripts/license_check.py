@@ -23,10 +23,12 @@
 
 """Fail when an installed dependency uses a licence outside the allow list.
 
-Licences are checked as expressions, not substrings: every term joined by AND
-must be allowed, and at least one alternative joined by OR (or by the "; "
-pip-licenses uses between classifiers) must pass. So `GPL-3.0 AND MIT` fails
-even though it mentions MIT, while `Apache-2.0 OR BSD-2-Clause` passes.
+Licences are parsed as SPDX-style expressions: parentheses group, AND binds
+tighter than OR, and pip-licenses' "; " between classifiers counts as OR. A
+licence term passes only if it is exactly one of the allowed names or
+aliases below, so `MIT-Commercial` fails and `(MIT OR GPL-3.0-only) AND
+GPL-3.0-only` fails because the GPL term is required. `WITH` exceptions pass
+only when the exception is listed too.
 """
 
 from __future__ import annotations
@@ -36,50 +38,135 @@ import re
 import subprocess
 import sys
 
-ALLOWED = (
+# Exact licence names, compared case-insensitively: SPDX IDs plus the
+# classifier names pip-licenses reports for them.
+_ALLOWED_NAMES = (
     "MIT",
-    "BSD",
+    "MIT License",
+    "MIT-CMU",
     "0BSD",
-    "Apache",
+    "BSD",
+    "BSD License",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "Apache-2.0",
+    "Apache License 2.0",
+    "Apache Software License",
     "ISC",
-    "MPL",
-    "Mozilla Public License",
-    "PSF",
-    "Python Software Foundation",
+    "ISC License (ISCL)",
+    "MPL-2.0",
+    "Mozilla Public License 2.0 (MPL 2.0)",
+    "PSF-2.0",
+    "Python Software Foundation License",
     "HPND",
+    "Historical Permission Notice and Disclaimer (HPND)",
     "Unlicense",
+    "The Unlicense (Unlicense)",
     "LicenseRef-FCL-1.0-MIT",
 )
-# Copyleft, source-available and unknown terms never pass, whatever else they say.
-DENIED = ("GPL", "SSPL", "BUSL", "Commons Clause", "NonCommercial", "UNKNOWN", "Proprietary")
+ALLOWED = frozenset(name.casefold() for name in _ALLOWED_NAMES)
+# Names that contain parentheses must be read as one token, not as a group.
+_PARENTHESISED = tuple(name for name in _ALLOWED_NAMES if "(" in name)
+ALLOWED_EXCEPTIONS = frozenset({"llvm-exception"})
 # Our own packages carry the FCL, which pip-licenses reports as UNKNOWN.
 OWN = {"home-assistant-setup", "oled-status"}
 
-_OR = re.compile(r"\s+OR\s+|\s*;\s*", re.IGNORECASE)
-_AND = re.compile(r"\s+AND\s+", re.IGNORECASE)
-_WITH = re.compile(r"\s+WITH\s+.*$", re.IGNORECASE)
+# Operators are upper case, as in SPDX, so names such as "Historical Permission
+# Notice and Disclaimer" are not split on their "and".
+_SPLIT = re.compile(r"(\(|\)|;|\s+(?:AND|OR|WITH)\s+)")
 
 
-def _mentions(term: str, names: tuple[str, ...]) -> bool:
-    """True when `term` names any of `names`, case-insensitively and not mid-word."""
-    return any(re.search(rf"(?<![A-Za-z]){re.escape(name)}", term, re.IGNORECASE) for name in names)
+class LicenceSyntaxError(ValueError):
+    """The expression could not be parsed; the check treats it as not allowed."""
 
 
-def term_allowed(term: str) -> bool:
-    """One licence, such as `MIT` or `Mozilla Public License 2.0 (MPL 2.0)`."""
-    base = _WITH.sub("", term).strip(" ()")
-    # Deny on the whole term, so an exception clause cannot hide a restriction.
-    return bool(base) and not _mentions(term, DENIED) and _mentions(base, ALLOWED)
+def _tokens(expression: str) -> list[str]:
+    """Split an expression into names, parentheses, `;` and AND/OR/WITH."""
+    protected: dict[str, str] = {}
+    for index, name in enumerate(_PARENTHESISED):
+        placeholder = f"\x00{index}\x00"
+        pattern = re.compile(re.escape(name), re.IGNORECASE)
+        if pattern.search(expression):
+            expression = pattern.sub(placeholder, expression)
+            protected[placeholder] = name
+    tokens = []
+    for raw in _SPLIT.split(expression):
+        token = raw.strip()
+        if token:
+            tokens.append(protected.get(token, token))
+    return tokens
+
+
+class _Parser:
+    """Recursive descent: or := and (OR|; and)*, and := with (AND with)*."""
+
+    def __init__(self, tokens: list[str]) -> None:
+        """Parse `tokens` from the start."""
+        self._tokens = tokens
+        self._index = 0
+
+    def _peek(self) -> str | None:
+        """The next symbol, or None at the end."""
+        return self._tokens[self._index] if self._index < len(self._tokens) else None
+
+    def _take(self) -> str:
+        """Consume and return the next symbol."""
+        symbol = self._peek()
+        if symbol is None:
+            raise LicenceSyntaxError("unexpected end of expression")
+        self._index += 1
+        return symbol
+
+    def parse(self) -> bool:
+        """Evaluate the whole expression; trailing tokens are a syntax error."""
+        result = self._or()
+        if self._peek() is not None:
+            raise LicenceSyntaxError(f"unexpected {self._peek()!r}")
+        return result
+
+    def _or(self) -> bool:
+        """At least one alternative must pass (evaluate all, to check syntax)."""
+        results = [self._and()]
+        while self._peek() in ("OR", ";"):
+            self._take()
+            results.append(self._and())
+        return any(results)
+
+    def _and(self) -> bool:
+        """Every conjoined term must pass."""
+        results = [self._with()]
+        while self._peek() == "AND":
+            self._take()
+            results.append(self._with())
+        return all(results)
+
+    def _with(self) -> bool:
+        """A term, optionally with an exception that must itself be allowed."""
+        allowed = self._term()
+        if self._peek() == "WITH":
+            self._take()
+            allowed = self._take().casefold() in ALLOWED_EXCEPTIONS and allowed
+        return allowed
+
+    def _term(self) -> bool:
+        """A licence name or a parenthesised expression."""
+        symbol = self._take()
+        if symbol == "(":
+            result = self._or()
+            if self._take() != ")":
+                raise LicenceSyntaxError("missing )")
+            return result
+        if symbol in (")", ";", "AND", "OR", "WITH"):
+            raise LicenceSyntaxError(f"unexpected {symbol!r}")
+        return symbol.casefold() in ALLOWED
 
 
 def expression_allowed(expression: str) -> bool:
-    """True when some OR alternative has every one of its AND terms allowed."""
-    flat = expression.replace("(", " ").replace(")", " ")
-    return any(
-        all(term_allowed(term) for term in _AND.split(alternative))
-        for alternative in _OR.split(flat)
-        if alternative.strip()
-    )
+    """True when the licence expression is satisfied by allowed licences only."""
+    try:
+        return _Parser(_tokens(expression)).parse()
+    except LicenceSyntaxError:
+        return False
 
 
 def main() -> int:

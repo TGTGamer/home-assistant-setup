@@ -58,6 +58,8 @@ license_check = _load()
         "Apache-2.0 WITH LLVM-exception",
         "(MIT OR GPL-3.0-only) AND Apache-2.0",
         "LicenseRef-FCL-1.0-MIT",
+        "Historical Permission Notice and Disclaimer (HPND)",
+        "MIT OR (GPL-2.0 AND MIT)",
     ],
 )
 def test_allowed(expression: str) -> None:
@@ -77,6 +79,14 @@ def test_allowed(expression: str) -> None:
         "",
         "Some Custom Licence",
         "MIT with Commons Clause",
+        "MIT-Commercial",
+        "MIT AND Commercial",
+        "(MIT OR GPL-3.0-only) AND GPL-3.0-only",
+        "Apache-2.0 WITH Some-Exception",
+        "(MIT",
+        "MIT)",
+        "MIT AND",
+        "OR MIT",
     ],
 )
 def test_denied(expression: str) -> None:
