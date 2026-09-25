@@ -34,8 +34,8 @@ Insert the new card, find it with `scripts/pi-flash.sh list`, and run:
 scripts/pi-flash.sh flash /dev/sdX   # downloads the latest rpi4-64 image
 ```
 
-It only accepts a removable disk, and asks you to type the device path again
-before erasing it.
+It only accepts a removable disk up to 256 GB, and asks you to type the device
+path again before erasing it. `backup` never replaces an existing image file.
 
 ## 3. Add the boot settings
 
