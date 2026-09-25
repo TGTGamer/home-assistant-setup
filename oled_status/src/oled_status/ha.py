@@ -28,10 +28,12 @@ from __future__ import annotations
 import ipaddress
 import json
 import os
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from typing import Final
+from email.message import Message
+from typing import IO, Final
 
 SUPERVISOR_URL: Final = "http://supervisor/core/api"
 
@@ -108,6 +110,33 @@ def parse_states(payload: object) -> States:
     return states
 
 
+class _NoRedirects(urllib.request.HTTPRedirectHandler):
+    """Refuse every redirect.
+
+    urllib copies request headers, including `Authorization`, onto the
+    redirected request, so following one could send the token somewhere
+    `safe_for_token` never checked. The states API never redirects, so a
+    redirect is treated as an error instead.
+    """
+
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: IO[bytes],
+        code: int,
+        msg: str,
+        headers: Message,
+        newurl: str,
+    ) -> urllib.request.Request | None:
+        """Raise instead of building a request for `newurl`."""
+        raise urllib.error.HTTPError(
+            req.full_url, code, f"refusing redirect to {newurl}", headers, fp
+        )
+
+
+_OPENER = urllib.request.build_opener(_NoRedirects)
+
+
 class HomeAssistant:
     """Fetches every entity state in one request.
 
@@ -144,5 +173,5 @@ class HomeAssistant:
             f"{self._base_url}/states",
             headers={"Authorization": f"Bearer {self._token}"},
         )
-        with urllib.request.urlopen(request, timeout=self._timeout) as response:  # noqa: S310
+        with _OPENER.open(request, timeout=self._timeout) as response:
             return parse_states(json.load(response))
