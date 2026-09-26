@@ -77,3 +77,12 @@ jobs:
       # does, so environment and start-up problems show up here.
       - name: Smoke test the image
         run: docker run --rm --platform ${{ matrix.platform }} oled-status:ci python3 -m oled_status --preview /tmp/previews
+      # Start the real CMD with a token, as the Supervisor would. There is no
+      # OLED in CI, so it must get past the token check and fail on the
+      # display instead.
+      - name: Check the token reaches the app
+        run: |
+          log=$(timeout 60 docker run --rm --platform ${{ matrix.platform }} -e SUPERVISOR_TOKEN=ci oled-status:ci 2>&1 || true)
+          echo "$log"
+          if echo "$log" | grep -q "set SUPERVISOR_TOKEN"; then echo "::error::SUPERVISOR_TOKEN did not reach the app"; exit 1; fi
+          echo "$log" | grep -qi "i2c" || { echo "::error::expected the app to reach the display step"; exit 1; }

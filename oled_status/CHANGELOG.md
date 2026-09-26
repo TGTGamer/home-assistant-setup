@@ -2,8 +2,10 @@
 
 ## 0.1.1
 
-- Fix start-up on Home Assistant OS: the app failed with "No module named
-  oled_status" because s6-overlay drops `PYTHONPATH`. The source path is now
+- Fix start-up on Home Assistant OS. s6-overlay starts the app with a clean
+  environment, which lost `PYTHONPATH` ("No module named oled_status") and
+  would also have lost `SUPERVISOR_TOKEN`. The app now starts through
+  `with-contenv`, as Home Assistant's own apps do, and the source path is
   registered with a `.pth` file.
 
 ## 0.1.0

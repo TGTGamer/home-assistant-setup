@@ -29,9 +29,11 @@ WORKDIR /opt/oled_status
 COPY requirements.lock ./
 RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 # Run from source: no package build, so no unpinned build backend either.
-# A .pth file puts src on Python's path; an ENV PYTHONPATH would be lost,
-# because s6-overlay starts the service with a clean environment.
+# A .pth file puts src on Python's path without relying on the environment.
 COPY src ./src
 RUN python3 -c "import site, pathlib; pathlib.Path(site.getsitepackages()[0], 'oled_status.pth').write_text('/opt/oled_status/src\\n')"
 
-CMD ["python3", "-m", "oled_status"]
+# s6-overlay starts CMD with a clean environment. with-contenv restores the
+# container's environment first, as Home Assistant's own apps do, so the
+# Supervisor-provided SUPERVISOR_TOKEN reaches the app.
+CMD ["/usr/bin/with-contenv", "python3", "-m", "oled_status"]
