@@ -5,13 +5,14 @@ assistants. This time it should solve real day-to-day problems.
 
 ## 1. Operational
 
-- [ ] Home Assistant OS on the Pi 4 with the boot settings ([install](install.md))
-- [ ] SSH access with a key
-- [ ] deCONZ with Phoscon on the RaspBee II
-- [ ] Homeway: remote access, Google Assistant, MCP
-- [ ] UPS Plus integration and low-battery shutdown
-- [ ] OLED Status app
+- [x] Home Assistant OS on the Pi 4 with the boot settings ([install](install.md))
+- [x] SSH access with a key
+- [x] deCONZ with Phoscon on the RaspBee II
+- [x] Homeway: remote access, Google Assistant, MCP
+- [x] UPS Plus integration and low-battery shutdown
+- [x] OLED Status app (0.1.1 fixes start-up on HA OS)
 - [ ] Core integrations: Hue, SmartThings, SimpliSafe, Hive, Nest, Sonos, phones
+- [ ] Add `core_freq=250` to the card's `config.txt` (card prepared before that fix)
 
 ## 2. Problems to solve
 

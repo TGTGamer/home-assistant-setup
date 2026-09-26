@@ -10,6 +10,8 @@ Setup, commands and known breaks for agents: [AGENT-SETUP.md](AGENT-SETUP.md).
   `oled_status/src/oled_status`. Pages live in `pages/`, one `Page` per screen.
 - `tests/oled_status/`: pytest, mirroring the package.
 - `ha-os/boot/`: boot partition settings; `scripts/`: card and setup scripts.
+- `ha-config/`: Home Assistant configuration recorded from the hub (for
+  example automations), for reference and rebuilds.
 - `docs/`: people-facing docs, hub `docs/readme.md`.
 
 ## Rules

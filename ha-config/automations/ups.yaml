@@ -1,0 +1,100 @@
+# ------------------------------------------------------------------------------
+# File: ha-config/automations/ups.yaml
+# Project: home-assistant-setup
+# Last modified: 2026-09-26
+#
+# Copyright 2026 TGTGamer - All Rights Reserved
+#
+# Licensed under the Fair Core License, Version 1.0, MIT Future License
+# (FCL-1.0-MIT); you may not use this file except in compliance with the
+# License in the LICENSE file at the root of this repository. Each version
+# becomes available under the MIT license on the second anniversary of the
+# date it is made available.
+#
+# You must not move, change, disable, or circumvent any license key
+# functionality in this software, or modify it to remove protected
+# functionality.
+#
+# Contributions are made under the TGTGamer Cooperation Commitment in
+# CONTRIBUTING.md, and everyone taking part follows CODE_OF_CONDUCT.md.
+#
+# DELETING THIS NOTICE AUTOMATICALLY VOIDS YOUR LICENSE
+# ------------------------------------------------------------------------------
+
+# UPS Plus automations, as created on the hub (Settings, Automations).
+# Needs the UPS Plus integration and the "UPS mains power" template binary sensor:
+#   state: "{{ [states('sensor.ups_type_c_voltage')|float(0),
+#              states('sensor.ups_micro_usb_voltage')|float(0)] | max > 4.5 }}"
+#   device_class: plug
+- id: ups_power_source_notify
+  alias: 'UPS: power source changed'
+  description: Tells you when the hub switches between mains and battery.
+  mode: single
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.ups_mains_power
+    from: 'on'
+    to: 'off'
+    for:
+      seconds: 30
+    id: battery
+  - trigger: state
+    entity_id: binary_sensor.ups_mains_power
+    from: 'off'
+    to: 'on'
+    for:
+      seconds: 30
+    id: mains
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: battery
+      sequence:
+      - action: persistent_notification.create
+        data:
+          notification_id: ups_power
+          title: Hub on battery
+          message: Mains power to the Home Assistant hub is off. Battery at {{ states('sensor.ups_battery_capacity')
+            }}%.
+    - conditions:
+      - condition: trigger
+        id: mains
+      sequence:
+      - action: persistent_notification.create
+        data:
+          notification_id: ups_power
+          title: Hub back on mains
+          message: Mains power is back. Battery at {{ states('sensor.ups_battery_capacity') }}%.
+- id: ups_low_battery_shutdown
+  alias: 'UPS: clean shutdown on low battery'
+  description: Shuts the host down cleanly before the UPS cuts power. The UPS switch 'turn on after power
+    on' restarts the Pi when mains returns.
+  mode: single
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.ups_battery_capacity
+    below: 25
+    for:
+      minutes: 1
+  - trigger: numeric_state
+    entity_id: sensor.ups_battery_voltage
+    below: 3.75
+    for:
+      minutes: 1
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.ups_mains_power
+    state: 'off'
+  actions:
+  - action: persistent_notification.create
+    data:
+      notification_id: ups_shutdown
+      title: Hub shutting down
+      message: Battery low ({{ states('sensor.ups_battery_capacity') }}%, {{ states('sensor.ups_battery_voltage')
+        }} V) with no mains power. Shutting down cleanly.
+  - delay:
+      seconds: 30
+  - action: hassio.host_shutdown
+    data: {}
+
