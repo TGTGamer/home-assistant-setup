@@ -73,5 +73,7 @@ jobs:
         with:
           persist-credentials: false
       - run: docker build --platform ${{ matrix.platform }} -t oled-status:ci oled_status
+      # Keep the image's own entrypoint (s6-overlay's /init), as the Supervisor
+      # does, so environment and start-up problems show up here.
       - name: Smoke test the image
-        run: docker run --rm --platform ${{ matrix.platform }} --entrypoint python3 oled-status:ci -m oled_status --preview /tmp/previews
+        run: docker run --rm --platform ${{ matrix.platform }} oled-status:ci python3 -m oled_status --preview /tmp/previews

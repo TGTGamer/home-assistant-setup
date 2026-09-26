@@ -29,7 +29,9 @@ WORKDIR /opt/oled_status
 COPY requirements.lock ./
 RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 # Run from source: no package build, so no unpinned build backend either.
+# A .pth file puts src on Python's path; an ENV PYTHONPATH would be lost,
+# because s6-overlay starts the service with a clean environment.
 COPY src ./src
-ENV PYTHONPATH=/opt/oled_status/src
+RUN python3 -c "import site, pathlib; pathlib.Path(site.getsitepackages()[0], 'oled_status.pth').write_text('/opt/oled_status/src\\n')"
 
 CMD ["python3", "-m", "oled_status"]

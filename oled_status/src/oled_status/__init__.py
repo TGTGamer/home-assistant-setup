@@ -23,4 +23,4 @@
 
 """Home status pages for a small SSD1306 OLED, as a Home Assistant app."""
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"

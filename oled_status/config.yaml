@@ -22,7 +22,7 @@
 # ------------------------------------------------------------------------------
 
 name: OLED Status
-version: "0.1.0"
+version: "0.1.1"
 slug: oled_status
 description: Rotating home status pages and alerts on a small SSD1306 OLED
 url: https://github.com/TGTGamer/home-assistant-setup/tree/main/oled_status
