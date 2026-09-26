@@ -23,7 +23,7 @@
 
 [project]
 name = "oled-status"
-version = "0.1.0"
+version = "0.1.1"
 description = "Home status pages for a small SSD1306 OLED, as a Home Assistant app"
 readme = "README.md"
 license = "LicenseRef-FCL-1.0-MIT"

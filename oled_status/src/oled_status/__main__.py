@@ -49,8 +49,11 @@ def main() -> None:
         return
 
     options = settings.load(args.options)
+    # Connect before opening the display, so a missing token fails first and
+    # clearly, rather than hiding behind a display error.
+    home = HomeAssistant.from_environment()
     screen: Screen = FileScreen(args.file) if args.file else Oled(options)
-    app.run(options, HomeAssistant.from_environment(), screen)
+    app.run(options, home, screen)
 
 
 if __name__ == "__main__":
