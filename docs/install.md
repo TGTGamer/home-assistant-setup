@@ -49,6 +49,26 @@ This appends [`config.txt.append`](../ha-os/boot/config.txt.append) (RaspBee
 UART, Bluetooth on the mini UART, I2C) and copies the `CONFIG` folder that
 loads the I2C modules. Rerunning it changes nothing.
 
+### Changing boot settings later
+
+The boot partition is not visible from the SSH app, so on a running hub:
+
+1. Install **Advanced SSH & Web Terminal** temporarily, with your key, a spare
+   SSH port (for example 2222) and **Protection mode** off, which gives it
+   Docker access to the host.
+2. Mount the boot partition in a short-lived privileged container, back up
+   `config.txt`, then edit it:
+
+   ```sh
+   docker run --rm --privileged -v /dev:/dev --entrypoint sh \
+     ghcr.io/home-assistant/aarch64-hassio-supervisor:<version> -c \
+     "mkdir -p /mnt/boot && mount -t vfat /dev/mmcblk0p1 /mnt/boot \
+      && cp /mnt/boot/config.txt /mnt/boot/config.txt.bak && vi /mnt/boot/config.txt; umount /mnt/boot"
+   ```
+
+3. **Uninstall the Advanced SSH app** so host access does not stay open, then
+   `ha host reboot`.
+
 ## 4. First boot
 
 1. Card in the Pi, Ethernet plugged in, power on.
@@ -118,12 +138,17 @@ loads the I2C modules. Rerunning it changes nothing.
    off, so it writes nothing to the UPS. Its "automatic shutdown" setting is
    stored but not acted on, so the shutdown is an automation instead.
 2. Add a template binary sensor **UPS mains power** (`device_class: plug`):
-   on when the USB-C or micro-USB input is above 4.5 V.
+   on when the USB-C or micro-USB input is above 4.5 V, and unknown while the
+   UPS readings are unavailable (template in the automations file).
 3. Add the automations in [`ha-config/automations/ups.yaml`](../ha-config/automations/ups.yaml):
-   a notification when the hub changes power source, and a clean
+   a notification when the hub changes power source, a clean
    `hassio.host_shutdown` when the battery is below 25% or 3.75 V while mains
-   is off, before the UPS cuts power at its 3.7 V protection voltage.
-4. Turn on **UPS Turn on after power on**, so the Pi starts again when mains
+   is off (before the UPS cuts power at its 3.7 V protection voltage), and a
+   reload after a failed boot read.
+4. The UPS can miss its first I2C read at boot, leaving every UPS sensor
+   unavailable. The third automation reloads the integration when that
+   happens.
+5. Turn on **UPS Turn on after power on**, so the Pi starts again when mains
    returns after a low-battery shutdown.
 
 ### OLED Status
