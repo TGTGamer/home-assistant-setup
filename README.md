@@ -13,6 +13,7 @@ Home Assistant apps I write for it.
 | [`docs/`](docs/readme.md) | Hardware, install runbook, what the old setup had, and the roadmap |
 | [`oled_status/`](oled_status/DOCS.md) | **OLED Status**, a Home Assistant app for the case's 0.96 inch OLED: clock, weather, people, locks, heating, bins, now playing, UPS, alerts, and a starfield |
 | [`ha-os/boot/`](ha-os/boot) | Boot settings for the RaspBee II serial port and I2C |
+| [`ha-config/`](ha-config) | Home Assistant configuration recorded from the hub, such as the UPS automations |
 | [`scripts/`](scripts) | Back up and flash SD cards, prepare the boot partition, set up a dev machine |
 
 ## Install the apps
