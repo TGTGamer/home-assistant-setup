@@ -12,7 +12,7 @@ assistants. This time it should solve real day-to-day problems.
 - [x] UPS Plus integration and low-battery shutdown
 - [x] OLED Status app (0.1.1 fixes start-up on HA OS)
 - [ ] Core integrations: Hue, SmartThings, SimpliSafe, Hive, Nest, Sonos, phones
-- [ ] Add `core_freq=250` to the card's `config.txt` (card prepared before that fix)
+- [x] Add `core_freq=250` to the card's `config.txt` (done over SSH; see install guide)
 
 ## 2. Problems to solve
 

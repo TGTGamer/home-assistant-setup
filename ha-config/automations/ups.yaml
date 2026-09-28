@@ -22,10 +22,13 @@
 # ------------------------------------------------------------------------------
 
 # UPS Plus automations, as created on the hub (Settings, Automations).
-# Needs the UPS Plus integration and the "UPS mains power" template binary sensor:
-#   state: "{{ [states('sensor.ups_type_c_voltage')|float(0),
-#              states('sensor.ups_micro_usb_voltage')|float(0)] | max > 4.5 }}"
-#   device_class: plug
+# Needs the UPS Plus integration and the "UPS mains power" template binary
+# sensor (device_class: plug). Its state is unknown, not off, while the UPS
+# readings are unavailable, so a failed read never looks like a power cut:
+#   {% set v = [states('sensor.ups_type_c_voltage'),
+#               states('sensor.ups_micro_usb_voltage')]
+#      | select('is_number') | map('float') | list %}
+#   {{ (v | max > 4.5) if v | count == 2 else none }}
 - id: ups_power_source_notify
   alias: 'UPS: power source changed'
   description: Tells you when the hub switches between mains and battery.
@@ -97,4 +100,26 @@
       seconds: 30
   - action: hassio.host_shutdown
     data: {}
+- id: ups_reload_when_unavailable
+  alias: 'UPS: reload when readings are unavailable'
+  description: The UPS can miss its first I2C read at boot; reload the integration so readings come back.
+  mode: single
+  triggers:
+  - trigger: state
+    entity_id: sensor.ups_battery_capacity
+    to: unavailable
+    for:
+      minutes: 2
+  - trigger: homeassistant
+    event: start
+  conditions:
+  - condition: state
+    entity_id: sensor.ups_battery_capacity
+    state: unavailable
+  actions:
+  - delay:
+      seconds: 30
+  - action: homeassistant.reload_config_entry
+    target:
+      entity_id: sensor.ups_battery_capacity
 
