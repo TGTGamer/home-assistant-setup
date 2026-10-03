@@ -25,9 +25,9 @@
 
 from __future__ import annotations
 
-from oled_status.pages import ambient, house
+from oled_status.pages import ambient, dino, house
 from oled_status.pages.common import Frame, Page
 
-PAGES: dict[str, Page] = {**ambient.PAGES, **house.PAGES}
+PAGES: dict[str, Page] = {**ambient.PAGES, **house.PAGES, **dino.PAGES}
 
 __all__ = ["PAGES", "Frame", "Page"]

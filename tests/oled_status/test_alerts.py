@@ -27,7 +27,7 @@ from dataclasses import replace
 from datetime import datetime
 
 from oled_status.alerts import Level, current
-from oled_status.snapshot import Bin, Lock, Person, Snapshot, Ups
+from oled_status.snapshot import Bin, LeakSensor, Lock, Person, Snapshot, Ups
 
 EVENING = datetime(2026, 9, 25, 18, 0)
 
@@ -71,7 +71,12 @@ def test_no_people_configured_means_no_away_alerts() -> None:
 
 def test_critical_alerts_come_first() -> None:
     """Leaks and running on battery outrank warnings."""
-    snapshot = replace(base(), night=True, leaks=("Sink",), ups=Ups(40, charging=False))
+    snapshot = replace(
+        base(),
+        night=True,
+        leak_sensors=(LeakSensor("Sink", wet=True),),
+        ups=Ups(40, charging=False),
+    )
     alerts = current(snapshot)
     assert [alert.level for alert in alerts][:2] == [Level.CRITICAL, Level.CRITICAL]
     assert alerts[0].detail == "Sink"

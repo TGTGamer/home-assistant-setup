@@ -33,6 +33,7 @@ from oled_status import icons, preview, rotation
 from oled_status.pages import PAGES, Frame
 from oled_status.pages.ambient import star_positions
 from oled_status.pages.common import HEIGHT, WIDTH, fit, text_width
+from oled_status.pages.dino import JUMP_HEIGHT, cactus_positions, jump_height
 from oled_status.render import render
 from oled_status.settings import Settings
 
@@ -41,7 +42,7 @@ from oled_status.settings import Settings
 def test_every_sample_page_draws_something(name: str) -> None:
     """Every page renders a non-blank 128x64 image from the samples."""
     frame = preview.frames()[name]
-    page = "alert" if name.startswith("alert") else name
+    page = name.split("-")[0]
     image = render(page, frame)
     assert image.size == (WIDTH, HEIGHT)
     assert image.getbbox() is not None, f"{name} drew nothing"
@@ -60,6 +61,7 @@ def test_pages_survive_an_empty_house(name: str) -> None:
         weather=None,
         ups=None,
         lights_on=(),
+        leak_sensors=(),
     )
     frame = Frame(empty)
     if PAGES[name].relevant(frame):
@@ -88,6 +90,37 @@ def test_starfield_moves_and_stays_on_screen() -> None:
     first, later = star_positions(0), star_positions(10)
     assert first != later
     assert all(0 <= x < WIDTH and 0 <= y < HEIGHT for x, y, _ in first + later)
+
+
+def test_leaks_page_names_wet_sensors() -> None:
+    """The leaks page draws differently once a sensor is wet, and hides with none."""
+    frames = preview.frames()
+    assert PAGES["leaks"].relevant(frames["leaks"])
+    assert (
+        render("leaks", frames["leaks"]).tobytes() != render("leaks", frames["leaks-wet"]).tobytes()
+    )
+    assert not PAGES["leaks"].relevant(Frame(replace(preview.sample(), leak_sensors=())))
+
+
+def test_dino_runs_and_jumps_every_cactus() -> None:
+    """The runner's legs move, it leaves the ground, and it never jumps off screen."""
+    frame = preview.frames()["dino_run"]
+    assert (
+        render("dino_run", frame).tobytes() != render("dino_run", replace(frame, tick=3)).tobytes()
+    )
+    heights = [jump_height(tick) for tick in range(600)]
+    assert max(heights) == JUMP_HEIGHT
+    assert min(heights) == 0
+    assert all(x < WIDTH for tick in range(600) for x in cactus_positions(tick))
+
+
+def test_dino_mood_reacts_to_alerts() -> None:
+    """The mood dinosaur draws differently while alerts are active."""
+    frames = preview.frames()
+    assert frames["dino"].alerts and not frames["dino-happy"].alerts
+    assert (
+        render("dino", frames["dino"]).tobytes() != render("dino", frames["dino-happy"]).tobytes()
+    )
 
 
 def test_rotation_skips_irrelevant_pages_and_interleaves_alerts() -> None:

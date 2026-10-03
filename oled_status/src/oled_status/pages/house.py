@@ -21,7 +21,7 @@
 # DELETING THIS NOTICE AUTOMATICALLY VOIDS YOUR LICENSE
 # ------------------------------------------------------------------------------
 
-"""Pages about the home: people, locks, heating, bins and the UPS."""
+"""Pages about the home: people, locks, heating, bins, leaks and the UPS."""
 
 from __future__ import annotations
 
@@ -70,6 +70,25 @@ def _locks(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
         state_width = text_width(state, 11)
         draw.text((WIDTH - state_width, y - 1), state, font=font(11), fill="white")
         name = fit(lock.name, 11, WIDTH - 16 - state_width - 4)
+        draw.text((16, y - 1), name, font=font(11), fill="white")
+
+
+def _leaks(draw: ImageDraw.ImageDraw, frame: Frame) -> None:
+    """Each leak sensor with a full or empty drop, and a count of wet ones."""
+    sensors = frame.snapshot.leak_sensors
+    wet_count = sum(sensor.wet for sensor in sensors)
+    header(
+        draw,
+        "drop" if wet_count else "dry",
+        "All dry" if not wet_count else f"{wet_count} wet!",
+    )
+    for row, sensor in enumerate(sensors[:3]):
+        y = 17 + row * 16
+        draw_icon(draw, "drop" if sensor.wet else "dry", 0, y)
+        state = "Wet" if sensor.wet else "Dry"
+        state_width = text_width(state, 11)
+        draw.text((WIDTH - state_width, y - 1), state, font=font(11), fill="white")
+        name = fit(sensor.name, 11, WIDTH - 16 - state_width - 4)
         draw.text((16, y - 1), name, font=font(11), fill="white")
 
 
@@ -134,6 +153,7 @@ PAGES: dict[str, Page] = {
     "locks": Page(_locks, lambda frame: bool(frame.snapshot.locks)),
     "heating": Page(_heating, lambda frame: frame.snapshot.heating is not None, animated=True),
     "bins": Page(_bins, lambda frame: bool(frame.snapshot.bins)),
+    "leaks": Page(_leaks, lambda frame: bool(frame.snapshot.leak_sensors)),
     "ups": Page(_ups, lambda frame: frame.snapshot.ups is not None),
     "mood": Page(_mood, animated=True),
 }
