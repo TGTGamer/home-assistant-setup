@@ -126,6 +126,17 @@ loads the I2C modules. Rerunning it changes nothing.
 4. Turn on **UPS Turn on after power on**, so the Pi starts again when mains
    returns after a low-battery shutdown.
 
+### Washing pods
+
+1. Add two helpers: a counter `counter.washing_machine_pods` (minimum 0, step
+   1, initial 0) and a toggle `input_boolean.washing_pods_asked`.
+2. Add the four automations in
+   [`ha-config/automations/washing_pods_tracker.yaml`](../ha-config/automations/washing_pods_tracker.yaml),
+   swapping in the washing machine plug's power sensor, your person entity,
+   your work zone and your phone's notify action as the file's header lists.
+   They count a pod off per wash, remind you to buy more when you leave work
+   with fewer than 5, and ask how many you bought when you get home.
+
 ### OLED Status
 
 Add this repository in the App store and install **OLED Status** (see its
