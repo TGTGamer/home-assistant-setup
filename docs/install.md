@@ -130,12 +130,13 @@ loads the I2C modules. Rerunning it changes nothing.
 
 1. Paste the helpers in
    [`ha-config/helpers/washing_pods.yaml`](../ha-config/helpers/washing_pods.yaml)
-   into `configuration.yaml`: a pods counter and the "asked" toggle.
+   into `configuration.yaml`: a pods counter and one "asked" toggle per person.
 2. Add the four automations in
    [`ha-config/automations/washing_pods_tracker.yaml`](../ha-config/automations/washing_pods_tracker.yaml)
    to `automations.yaml`, then reload. They count a pod off per wash job
-   reported by the SmartThings washer, remind you to buy more when you leave
-   the office with fewer than 5, and ask how many you bought when you get home.
+   reported by the SmartThings washer, remind whoever leaves work to buy more
+   when fewer than 5 are left, ask how many they bought when they get home,
+   and tell the other person once pods are bought.
 
 ### OLED Status
 
