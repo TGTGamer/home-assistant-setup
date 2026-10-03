@@ -25,9 +25,10 @@ Setup, commands and known breaks for agents: [AGENT-SETUP.md](AGENT-SETUP.md).
   `translations/en.yaml` and `DOCS.md` in step when an option changes.
 - Every source file carries the FCL-1.0-MIT header (`pnpm house:fix`). ASCII
   hyphens only; no en or em dashes.
-- No personal data in the repo: no names, addresses, account emails, device
-  identifiers, IP addresses or tokens. Use roles ("partner") and entity-ID
-  shapes (`lock.front_door`).
+- Real Home Assistant entity IDs are fine in the repo, including in
+  `ha-config/`, so recorded automations can be pasted onto the hub as they
+  are. Still no addresses, account emails, phone numbers, device serials,
+  IP addresses or tokens; refer to people in prose by role ("partner").
 - Read library source rather than guessing APIs. luma.core and luma.oled are
   plain Python, readable after setup under
   `.venv/lib/python3.*/site-packages/luma/`, so they are not vendored into
