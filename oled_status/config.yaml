@@ -22,7 +22,7 @@
 # ------------------------------------------------------------------------------
 
 name: OLED Status
-version: "0.1.1"
+version: "0.2.0"
 slug: oled_status
 description: Rotating home status pages and alerts on a small SSD1306 OLED
 url: https://github.com/TGTGamer/home-assistant-setup/tree/main/oled_status
@@ -51,6 +51,7 @@ options:
     - locks
     - heating
     - bins
+    - leaks
     - media
     - ups
     - mood
@@ -77,7 +78,7 @@ schema:
   page_seconds: int(2,120)
   refresh_seconds: int(1,300)
   pages:
-    - list(clock|weather|people|locks|heating|bins|media|ups|mood|starfield)
+    - list(clock|weather|people|locks|heating|bins|leaks|media|ups|mood|dino|dino_run|starfield)
   weather: str?
   climate: str?
   media_player: str?

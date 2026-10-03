@@ -282,6 +282,20 @@ _ICONS: Final[dict[str, tuple[str, ...]]] = {
         "....####....",
         "............",
     ),
+    "dry": (
+        ".....#......",
+        ".....##.....",
+        "....#.##....",
+        "....#..#....",
+        "...#....#...",
+        "..#......#..",
+        "..#......#..",
+        "..#......#..",
+        "..#......#..",
+        "...#....#...",
+        "....####....",
+        "............",
+    ),
     "warning": (
         ".....##.....",
         ".....##.....",
@@ -324,12 +338,24 @@ def names() -> list[str]:
     return sorted(_ICONS)
 
 
-def draw_icon(
-    draw: ImageDraw.ImageDraw, name: str, x: int, y: int, scale: int = 1, fill: str = "white"
+def draw_rows(
+    draw: ImageDraw.ImageDraw,
+    rows: tuple[str, ...],
+    x: int,
+    y: int,
+    scale: int = 1,
+    fill: str = "white",
 ) -> None:
-    """Draw icon `name` with its top-left corner at (x, y)."""
-    for row, line in enumerate(_ICONS.get(name, _ICONS["warning"])):
+    """Draw pixel-art `rows` (`#` on, anything else off) with the top-left at (x, y)."""
+    for row, line in enumerate(rows):
         for column, pixel in enumerate(line):
             if pixel == "#":
                 left, top = x + column * scale, y + row * scale
                 draw.rectangle((left, top, left + scale - 1, top + scale - 1), fill=fill)
+
+
+def draw_icon(
+    draw: ImageDraw.ImageDraw, name: str, x: int, y: int, scale: int = 1, fill: str = "white"
+) -> None:
+    """Draw icon `name` with its top-left corner at (x, y)."""
+    draw_rows(draw, _ICONS.get(name, _ICONS["warning"]), x, y, scale, fill)

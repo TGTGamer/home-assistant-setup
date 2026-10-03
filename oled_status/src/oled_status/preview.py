@@ -34,8 +34,19 @@ from PIL import Image
 from oled_status import alerts
 from oled_status.pages import PAGES, Frame
 from oled_status.pages.common import HEIGHT, WIDTH
+from oled_status.pages.dino import jump_height
 from oled_status.render import render
-from oled_status.snapshot import Bin, Heating, Lock, Media, Person, Snapshot, Ups, Weather
+from oled_status.snapshot import (
+    Bin,
+    Heating,
+    LeakSensor,
+    Lock,
+    Media,
+    Person,
+    Snapshot,
+    Ups,
+    Weather,
+)
 
 SCALE = 3
 GAP = 6
@@ -54,19 +65,38 @@ def sample() -> Snapshot:
         weather=Weather("partlycloudy", 14.0, "°C"),
         ups=Ups(87.0, charging=True),
         lights_on=("Kitchen", "Lounge"),
+        leak_sensors=(
+            LeakSensor("Kitchen sink", wet=False),
+            LeakSensor("Boiler", wet=False),
+            LeakSensor("Washing machine", wet=False),
+        ),
     )
 
 
 def frames() -> dict[str, Frame]:
-    """One sample frame per page, plus a night alert and a flashing critical alert."""
+    """One sample frame per page, plus alert, wet, happy and jump variants.
+
+    A key's page is the part before any `-`, so `leaks-wet` renders `leaks`.
+    """
     snapshot = sample()
     night = replace(snapshot, night=True)
-    leak = replace(snapshot, leaks=("Kitchen sink",))
+    leak = replace(
+        snapshot,
+        leak_sensors=(LeakSensor("Kitchen sink", wet=True), *snapshot.leak_sensors[1:]),
+    )
     return {
         **{name: Frame(snapshot, tuple(alerts.current(snapshot))) for name in PAGES},
         "alert": Frame(night, tuple(alerts.current(night))),
         "alert-critical": Frame(leak, tuple(alerts.current(leak)), tick=5),
+        "leaks-wet": Frame(leak, tuple(alerts.current(leak))),
+        "dino-happy": Frame(snapshot),
+        "dino_run-jump": Frame(snapshot, tuple(alerts.current(snapshot)), tick=jump_tick()),
     }
+
+
+def jump_tick() -> int:
+    """The first tick at which the running dinosaur is at the top of a jump."""
+    return max(range(600), key=lambda tick: (jump_height(tick), -tick))
 
 
 def write(out: Path) -> list[Path]:
@@ -75,7 +105,7 @@ def write(out: Path) -> list[Path]:
     written: list[Path] = []
     images: list[Image.Image] = []
     for name, frame in frames().items():
-        page = "alert" if name.startswith("alert") else name
+        page = name.split("-")[0]
         image = render(page, frame).convert("L")
         image = image.resize((WIDTH * SCALE, HEIGHT * SCALE), Image.Resampling.NEAREST)
         path = out / f"{name}.png"

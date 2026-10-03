@@ -1,5 +1,5 @@
 {
-  "pages": ["clock", "weather", "people", "locks", "heating", "bins", "media", "ups", "mood", "starfield"],
+  "pages": ["clock", "weather", "people", "locks", "heating", "bins", "leaks", "media", "ups", "mood", "dino", "dino_run", "starfield"],
   "weather": "weather.forecast_home",
   "persons": [],
   "locks": [],

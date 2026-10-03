@@ -40,6 +40,7 @@ DEFAULT_PAGES: Final = (
     "locks",
     "heating",
     "bins",
+    "leaks",
     "media",
     "ups",
     "mood",

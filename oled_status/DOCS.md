@@ -15,12 +15,17 @@ Raspberry Pi case, and interrupts itself when something needs attention.
 | `locks` | Each lock and its state | `locks` is set |
 | `heating` | Current and target temperature; flame flickers while heating | `climate` is set |
 | `bins` | Next collections | `bins` is set and a collection is due |
+| `leaks` | Each leak sensor, wet or dry | `leak_sensors` is set |
 | `media` | Title (scrolling) and artist | `media_player` is playing |
 | `ups` | Battery level, mains or battery | `ups_battery` is set |
 | `mood` | A face: happy when all is well, worried when there are alerts | Always |
+| `dino` | The same mood as a dinosaur: bouncing when all is well, sweating when there are alerts | Always |
+| `dino_run` | Animated: the dinosaur runs across a desert, jumping cacti | Always |
 | `starfield` | Animated stars, which also spares the OLED from burn-in | Always |
 
 Pages with nothing to show are skipped. If none are left, the clock shows.
+`mood` and `dino` show the same thing, so list whichever you prefer in
+`pages`, or both.
 
 ## Alerts
 
@@ -85,7 +90,7 @@ page or alert off.
 | `persons` | | `person.*` entities |
 | `locks` | | `lock.*` entities |
 | `bins` | | Collection sensors (days until, a date, `today` or `tomorrow`, or a `daysTo` attribute) |
-| `leak_sensors` | | `binary_sensor.*` moisture sensors |
+| `leak_sensors` | | `binary_sensor.*` moisture sensors, for the leaks page and alert |
 | `ignored_lights` | | `light.*` entities that may stay on |
 
 ## Troubleshooting

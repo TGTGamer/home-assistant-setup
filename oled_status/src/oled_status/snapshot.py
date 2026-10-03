@@ -99,6 +99,14 @@ class Ups:
 
 
 @dataclass(frozen=True)
+class LeakSensor:
+    """A water leak detector; `wet` while it reports water."""
+
+    name: str
+    wet: bool
+
+
+@dataclass(frozen=True)
 class Snapshot:
     """What the house looks like right now, already filtered by the settings."""
 
@@ -112,12 +120,17 @@ class Snapshot:
     weather: Weather | None = None
     ups: Ups | None = None
     lights_on: tuple[str, ...] = ()
-    leaks: tuple[str, ...] = ()
+    leak_sensors: tuple[LeakSensor, ...] = ()
 
     @property
     def anyone_home(self) -> bool:
         """True when at least one tracked person is home."""
         return any(person.home for person in self.people)
+
+    @property
+    def leaks(self) -> tuple[str, ...]:
+        """Names of the leak sensors currently reporting water."""
+        return tuple(sensor.name for sensor in self.leak_sensors if sensor.wet)
 
 
 def is_night(now: time, start: time, end: time) -> bool:
@@ -224,10 +237,10 @@ def build(states: States, settings: Settings, now: datetime) -> Snapshot:
             and not state.attributes.get("entity_id")  # skip light groups
         )
     )
-    leaks = tuple(
-        state.name
+    leak_sensors = tuple(
+        LeakSensor(state.name, state.state == "on")
         for entity_id in settings.leak_sensors
-        if (state := get(entity_id)) and state.state == "on"
+        if (state := get(entity_id))
     )
 
     return Snapshot(
@@ -241,5 +254,5 @@ def build(states: States, settings: Settings, now: datetime) -> Snapshot:
         weather=weather,
         ups=ups,
         lights_on=lights_on,
-        leaks=leaks,
+        leak_sensors=leak_sensors,
     )

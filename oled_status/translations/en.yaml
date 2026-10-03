@@ -81,7 +81,7 @@ configuration:
     description: Sensors giving days until collection or the next date.
   leak_sensors:
     name: Leak sensors
-    description: binary_sensor entities that turn on when water is detected.
+    description: binary_sensor entities that turn on when water is detected; listed on the leaks page.
   ignored_lights:
     name: Lights to ignore
     description: Lights that may stay on without an alert, such as a night light.
