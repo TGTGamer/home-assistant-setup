@@ -151,6 +151,27 @@ The boot partition is not visible from the SSH app, so on a running hub:
 5. Turn on **UPS Turn on after power on**, so the Pi starts again when mains
    returns after a low-battery shutdown.
 
+### Washing pods, batteries and the shopping list
+
+1. Paste the helpers in
+   [`ha-config/helpers/washing_pods.yaml`](../ha-config/helpers/washing_pods.yaml)
+   into `configuration.yaml`: a pods counter, one "asked" toggle per person
+   and the battery low threshold.
+2. Add the automations in
+   [`ha-config/automations/washing_pods_tracker.yaml`](../ha-config/automations/washing_pods_tracker.yaml)
+   and [`ha-config/automations/batteries.yaml`](../ha-config/automations/batteries.yaml)
+   to `automations.yaml`, then reload. The pods ones count a pod off per wash
+   job reported by the SmartThings washer, keep "Washing pods" on the
+   built-in shopping list while fewer than 5 are left, remind whoever leaves
+   work of the list, ask how many they bought when they get home, and tell
+   the other person. The batteries one checks every battery level sensor
+   daily, lists low ones on the shopping list and notifies both phones.
+3. Set each device's battery type as a label on its battery level sensor:
+   `Battery AA x2`, `Battery AA x4`, `Battery CR2032`, `Battery CR2450`, or a
+   new `Battery <type>` label. `No battery alerts` excludes a sensor.
+   [`scripts/ha_ws.py`](../scripts/ha_ws.py) can create labels and set them
+   over the websocket API from the hub's SSH app.
+
 ### OLED Status
 
 Add this repository in the App store and install **OLED Status** (see its

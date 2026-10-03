@@ -1,0 +1,118 @@
+# ------------------------------------------------------------------------------
+# File: ha-config/automations/batteries.yaml
+# Project: home-assistant-setup
+# Last modified: 2026-10-03
+#
+# Copyright 2026 TGTGamer - All Rights Reserved
+#
+# Licensed under the Fair Core License, Version 1.0, MIT Future License
+# (FCL-1.0-MIT); you may not use this file except in compliance with the
+# License in the LICENSE file at the root of this repository. Each version
+# becomes available under the MIT license on the second anniversary of the
+# date it is made available.
+#
+# You must not move, change, disable, or circumvent any license key
+# functionality in this software, or modify it to remove protected
+# functionality.
+#
+# Contributions are made under the TGTGamer Cooperation Commitment in
+# CONTRIBUTING.md, and everyone taking part follows CODE_OF_CONDUCT.md.
+#
+# DELETING THIS NOTICE AUTOMATICALLY VOIDS YOUR LICENSE
+
+# Batteries: a daily check of every battery level sensor, with the shopping
+# list and a phone notification when something needs new batteries.
+#
+# Set the battery type by putting one label on the device's battery level
+# sensor (Settings, Devices and services, Entities, the sensor, settings cog,
+# Labels): "Battery AA x2", "Battery AA x4", "Battery CR2032" or
+# "Battery CR2450". Add a new "Battery <type>" label for anything else; the
+# text after "Battery " is what goes on the shopping list. A sensor with no
+# label is still checked and listed as "type not set". The label
+# "No battery alerts" excludes a sensor. Phones, the car and the UPS are
+# excluded already.
+#
+# input_number.battery_low_threshold (configuration.yaml) sets the level, in
+# percent, at or below which a battery counts as low. Hive radiator valves
+# report in steps of 20 and flip between 0 and 20 when they are low.
+#
+# Every day at 10:00: each low battery gets a shopping list item
+# "<type> for <device>" (todo.shopping_list). The item text is how a battery is
+# recognised again, so a battery that has been replaced is ticked off
+# automatically (renaming a device or relabelling it leaves the old item to
+# tick off by hand), and both phones hear about newly low batteries. The
+# leaving-work reminder in the washing pods automations reads the same list.
+
+- id: batteries_check
+  alias: 'Batteries: check levels and update the shopping list'
+  description: Lists low batteries on the shopping list, ticks off replaced ones, and notifies about new ones.
+  mode: single
+  variables:
+    phones:
+    - notify.mobile_app_jonathan_s_phone
+    - notify.mobile_app_sm_s928b
+  triggers:
+  - trigger: time
+    at: '10:00:00'
+  actions:
+  - variables:
+      threshold: "{{ states('input_number.battery_low_threshold') | float(15) }}"
+      batteries: >-
+        {% set ns = namespace(items=[]) %}
+        {% set skip = integration_entities('mobile_app') + integration_entities('upsplus') %}
+        {% for s in states.sensor if s.attributes.get('device_class') == 'battery' and s.entity_id not in skip %}
+          {% set names = labels(s.entity_id) | map('label_name') | list %}
+          {% if 'No battery alerts' not in names %}
+            {% set type = names | select('match', 'Battery ') | map('regex_replace', '^Battery ', '') | list | first | default('type not set') %}
+            {% set name = device_attr(s.entity_id, 'name_by_user') or device_attr(s.entity_id, 'name') or s.name %}
+            {% set level = s.state | int if is_number(s.state) else none %}
+            {% set ns.items = ns.items + [{'entity_id': s.entity_id, 'name': name, 'type': type, 'level': level, 'item': type ~ ' for ' ~ name}] %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.items }}
+      low: "{{ batteries | selectattr('level', 'number') | selectattr('level', 'le', threshold) | list }}"
+      fine_items: >-
+        {{ batteries | selectattr('level', 'number') | selectattr('level', 'gt', threshold)
+           | map(attribute='item') | list }}
+  - action: todo.get_items
+    target:
+      entity_id: todo.shopping_list
+    data:
+      status: needs_action
+    response_variable: shopping
+  - variables:
+      listed: "{{ shopping['todo.shopping_list']['items'] | map(attribute='summary') | list }}"
+      new: "{{ low | rejectattr('item', 'in', listed) | list }}"
+      replaced: "{{ listed | select('in', fine_items) | list }}"
+  - repeat:
+      for_each: "{{ new }}"
+      sequence:
+      - action: todo.add_item
+        target:
+          entity_id: todo.shopping_list
+        data:
+          item: "{{ repeat.item.item }}"
+  - repeat:
+      for_each: "{{ replaced }}"
+      sequence:
+      - action: todo.update_item
+        target:
+          entity_id: todo.shopping_list
+        data:
+          item: "{{ repeat.item }}"
+          status: completed
+  - if:
+    - condition: template
+      value_template: "{{ new | count > 0 }}"
+    then:
+    - repeat:
+        for_each: "{{ phones }}"
+        sequence:
+        - action: "{{ repeat.item }}"
+          data:
+            title: Batteries needed
+            message: >-
+              {% for b in new %}{{ b.name }} ({{ b.type }}, {{ b.level }}%){{ ', ' if not loop.last else '' }}{% endfor %}.
+              {{ 'They are' if new | count > 1 else 'It is' }} on the shopping list.
+            data:
+              tag: batteries

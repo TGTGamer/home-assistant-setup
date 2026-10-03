@@ -1,0 +1,288 @@
+# ------------------------------------------------------------------------------
+# File: ha-config/automations/washing_pods_tracker.yaml
+# Project: home-assistant-setup
+# Last modified: 2026-10-03
+#
+# Copyright 2026 TGTGamer - All Rights Reserved
+#
+# Licensed under the Fair Core License, Version 1.0, MIT Future License
+# (FCL-1.0-MIT); you may not use this file except in compliance with the
+# License in the LICENSE file at the root of this repository. Each version
+# becomes available under the MIT license on the second anniversary of the
+# date it is made available.
+#
+# You must not move, change, disable, or circumvent any license key
+# functionality in this software, or modify it to remove protected
+# functionality.
+#
+# Contributions are made under the TGTGamer Cooperation Commitment in
+# CONTRIBUTING.md, and everyone taking part follows CODE_OF_CONDUCT.md.
+#
+# DELETING THIS NOTICE AUTOMATICALLY VOIDS YOUR LICENSE
+
+# Washing pods: count down a pod per wash cycle and nag for more on the way home.
+# Works for both people in the house; either one's answer updates the shared count.
+#
+# Helpers live in configuration.yaml (ha-config/helpers/washing_pods.yaml):
+#   counter.washing_machine_pods               Pods in the cupboard, minimum 0.
+#   input_boolean.washing_pods_asked_jonathan  On between that person's
+#   input_boolean.washing_pods_asked_jake      leaving-work reminder and their
+#                                              answer at home.
+#
+# Entities used:
+#   sensor.kitchen_washing_machine_job_state   SmartThings washer-dryer job
+#                                              state: weight_sensing, wash,
+#                                              rinse, spin, drying, finish, none.
+#   person.jonathan_stevens, zone.jonathan_s_office
+#   person.jake_east, zone.jake_s_work
+#   notify.mobile_app_jonathan_s_phone         The companion app's notify actions.
+#   notify.mobile_app_sm_s928b                 notify.send_message cannot carry
+#                                              the data block the buttons need.
+#
+# How it behaves:
+#   1. The washer reporting a "wash" job takes one pod off the counter. A
+#      drying-only run never reports "wash", so it does not count. At most once
+#      per 30 minutes, in case a paused cycle reports the phase again. The
+#      counter stops at 0.
+#   2. Whoever leaves their work zone with fewer than 5 pods gets a reminder,
+#      every time.
+#   3. Arriving home after a reminder, that person is asked whether they bought
+#      any. "Bought some" opens a text field for the number (the REPLY action on
+#      Android, text input on iOS); "Didn't get any" leaves the count alone, so
+#      the next time they leave work it reminds them again.
+#   4. The answer is matched to the phone that sent it. Buying pods clears both
+#      people's pending questions and tells the other person, so nobody buys
+#      twice.
+#   5. A wash that drops the count below 5 sends both phones a heads-up.
+#   6. "Washing pods" sits on the shopping list (todo.shopping_list) while the
+#      count is under 5 and is ticked off once it is 5 or more. The leaving-work
+#      reminder lists everything else on the shopping list too, so milk or
+#      batteries added by hand or by the batteries automation come along.
+#
+# Every phone notification uses the tag "washing_pods", so each one replaces
+# the last rather than piling up. "Run actions" in the UI treats the run as
+# Jonathan's, since no trigger says whose it is. Running a single action card
+# on its own does not carry the automation's variables, so expect errors there.
+
+- id: washing_pods_count_down
+  alias: 'Washing pods: count down on wash'
+  description: Takes one pod off the counter when the washer starts a wash job.
+  mode: single
+  triggers:
+  - trigger: state
+    entity_id: sensor.kitchen_washing_machine_job_state
+    to: wash
+  conditions:
+  - condition: template
+    value_template: >-
+      {{ this.attributes.last_triggered is none
+         or now() - this.attributes.last_triggered > timedelta(minutes=30) }}
+  actions:
+  - action: counter.decrement
+    target:
+      entity_id: counter.washing_machine_pods
+  - if:
+    - condition: numeric_state
+      entity_id: counter.washing_machine_pods
+      below: 5
+    then:
+    - repeat:
+        for_each:
+        - notify.mobile_app_jonathan_s_phone
+        - notify.mobile_app_sm_s928b
+        sequence:
+        - action: "{{ repeat.item }}"
+          data:
+            title: Washing pods running low
+            message: "{{ states('counter.washing_machine_pods') }} left after this wash."
+            data:
+              tag: washing_pods
+
+- id: washing_pods_leaving_work
+  alias: 'Washing pods: remind when leaving work'
+  description: Reminds whoever leaves work of the shopping list, and to buy pods while fewer than 5 are left.
+  mode: parallel
+  variables:
+    phones:
+      jonathan: notify.mobile_app_jonathan_s_phone
+      jake: notify.mobile_app_sm_s928b
+  triggers:
+  - trigger: zone
+    entity_id: person.jonathan_stevens
+    zone: zone.jonathan_s_office
+    event: leave
+    id: jonathan
+  - trigger: zone
+    entity_id: person.jake_east
+    zone: zone.jake_s_work
+    event: leave
+    id: jake
+  actions:
+  - action: todo.get_items
+    target:
+      entity_id: todo.shopping_list
+    data:
+      status: needs_action
+    response_variable: shopping
+  - variables:
+      who: "{{ trigger.id if trigger is defined and trigger.id is defined else 'jonathan' }}"
+      pods_low: "{{ states('counter.washing_machine_pods') | int(0) < 5 }}"
+      others: >-
+        {{ shopping['todo.shopping_list']['items'] | map(attribute='summary')
+           | reject('eq', 'Washing pods') | list }}
+  - condition: template
+    value_template: "{{ pods_low or others | count > 0 }}"
+  - if:
+    - condition: template
+      value_template: "{{ pods_low }}"
+    then:
+    - action: input_boolean.turn_on
+      target:
+        entity_id: "input_boolean.washing_pods_asked_{{ who }}"
+  - action: "{{ phones[who] }}"
+    data:
+      title: "{{ 'Buy washing pods' if pods_low else 'Shopping list' }}"
+      message: >-
+        {% if pods_low %}Only {{ states('counter.washing_machine_pods') }} pods left.{% endif %}
+        {% if others %} On the list: {{ others | join(', ') }}.{% endif %}
+      data:
+        tag: washing_pods
+
+- id: washing_pods_shopping_list
+  alias: 'Washing pods: keep on the shopping list'
+  description: Lists "Washing pods" while fewer than 5 are left and ticks it off once there are 5 or more.
+  mode: queued
+  triggers:
+  - trigger: numeric_state
+    entity_id: counter.washing_machine_pods
+    below: 5
+  - trigger: numeric_state
+    entity_id: counter.washing_machine_pods
+    above: 4
+  actions:
+  - action: todo.get_items
+    target:
+      entity_id: todo.shopping_list
+    data:
+      status: needs_action
+    response_variable: shopping
+  - variables:
+      listed: >-
+        {{ shopping['todo.shopping_list']['items'] | selectattr('summary', 'eq', 'Washing pods')
+           | list | count > 0 }}
+      low: "{{ states('counter.washing_machine_pods') | int(0) < 5 }}"
+  - choose:
+    - conditions: "{{ low and not listed }}"
+      sequence:
+      - action: todo.add_item
+        target:
+          entity_id: todo.shopping_list
+        data:
+          item: Washing pods
+    - conditions: "{{ not low and listed }}"
+      sequence:
+      - action: todo.update_item
+        target:
+          entity_id: todo.shopping_list
+        data:
+          item: Washing pods
+          status: completed
+
+- id: washing_pods_arriving_home
+  alias: 'Washing pods: ask when home'
+  description: After a reminder, asks the person arriving home whether they bought pods.
+  mode: parallel
+  variables:
+    phones:
+      jonathan: notify.mobile_app_jonathan_s_phone
+      jake: notify.mobile_app_sm_s928b
+  triggers:
+  - trigger: zone
+    entity_id: person.jonathan_stevens
+    zone: zone.home
+    event: enter
+    id: jonathan
+  - trigger: zone
+    entity_id: person.jake_east
+    zone: zone.home
+    event: enter
+    id: jake
+  conditions:
+  - condition: template
+    value_template: "{{ is_state('input_boolean.washing_pods_asked_' ~ (trigger.id if trigger is defined and trigger.id is defined else 'jonathan'), 'on') }}"
+  actions:
+  - variables:
+      who: "{{ trigger.id if trigger is defined and trigger.id is defined else 'jonathan' }}"
+  - action: "{{ phones[who] }}"
+    data:
+      title: Did you get washing pods?
+      message: "{{ states('counter.washing_machine_pods') }} in the cupboard right now."
+      data:
+        tag: washing_pods
+        actions:
+        - action: REPLY
+          title: Bought some
+          behavior: textInput
+          textInputButtonTitle: Add
+          textInputPlaceholder: How many pods?
+        - action: WASHING_PODS_NOT_BOUGHT
+          title: Didn't get any
+
+- id: washing_pods_answer
+  alias: 'Washing pods: handle the answer'
+  description: Adds the pods someone bought and tells the other person, or leaves the count so their next leave-work reminder fires.
+  mode: queued
+  variables:
+    phones:
+      jonathan: notify.mobile_app_jonathan_s_phone
+      jake: notify.mobile_app_sm_s928b
+    owners:
+      281d66d8057b545faa47672475eff8a8: jonathan
+      1594861c31265003b8f73dd2d844c177: jake
+  triggers:
+  - trigger: event
+    event_type: mobile_app_notification_action
+    event_data:
+      action: REPLY
+    id: bought
+  - trigger: event
+    event_type: mobile_app_notification_action
+    event_data:
+      action: WASHING_PODS_NOT_BOUGHT
+    id: not_bought
+  conditions:
+  - condition: template
+    value_template: "{{ trigger is not defined or trigger.event is not defined or trigger.event.data.tag | default('washing_pods') == 'washing_pods' }}"
+  actions:
+  - variables:
+      who: "{{ owners.get(trigger.event.data.device_id, 'jonathan') if trigger is defined and trigger.event is defined else 'jonathan' }}"
+      other: "{{ 'jake' if who == 'jonathan' else 'jonathan' }}"
+  - action: input_boolean.turn_off
+    target:
+      entity_id: "input_boolean.washing_pods_asked_{{ who }}"
+  - if:
+    - condition: trigger
+      id: bought
+    then:
+    - variables:
+        bought: "{{ trigger.event.data.reply_text | default('') | regex_findall('\\d+') | first | default(0) | int(0) }}"
+    - action: counter.set_value
+      target:
+        entity_id: counter.washing_machine_pods
+      data:
+        value: "{{ states('counter.washing_machine_pods') | int(0) + bought }}"
+    - action: input_boolean.turn_off
+      target:
+        entity_id: "input_boolean.washing_pods_asked_{{ other }}"
+    - action: "{{ phones[who] }}"
+      data:
+        title: Washing pods updated
+        message: "Added {{ bought }}. {{ states('counter.washing_machine_pods') }} in stock."
+        data:
+          tag: washing_pods
+    - action: "{{ phones[other] }}"
+      data:
+        title: Washing pods sorted
+        message: "{{ who | capitalize }} bought {{ bought }}. {{ states('counter.washing_machine_pods') }} in stock, no need to get more."
+        data:
+          tag: washing_pods
