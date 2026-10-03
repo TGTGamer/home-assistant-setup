@@ -22,52 +22,48 @@
 
 # Washing pods: count down a pod per wash cycle and nag for more on the way home.
 #
-# Helpers (Settings, Devices and services, Helpers), both created once:
-#   counter.washing_machine_pods        Counter, name "Washing machine pods",
-#                                       minimum 0, step 1, initial value 0.
-#   input_boolean.washing_pods_asked    Toggle, name "Washing pods asked".
-#                                       On between the leaving-work reminder and
-#                                       your answer at home.
+# Helpers live in configuration.yaml (ha-config/helpers/washing_pods.yaml):
+#   counter.washing_machine_pods        Pods in the cupboard, minimum 0.
+#   input_boolean.washing_pods_asked    On between the leaving-work reminder and
+#                                       the answer at home.
 #
-# Replace these entity IDs with yours before pasting (Settings, Automations,
-# three-dot menu, Edit in YAML, one automation at a time):
-#   sensor.washing_machine_power        Power reading of the washing machine's
-#                                       smart plug, in W.
-#   person.me                           Your person entity.
-#   zone.work                           Your work zone (Settings, Areas and zones).
-#   notify.mobile_app_my_phone          Your phone's notify action, listed under
-#                                       Developer tools, Actions, as
-#                                       "notify.mobile_app_<phone name>".
+# Entities used:
+#   sensor.kitchen_washing_machine_job_state   SmartThings washer-dryer job
+#                                              state: weight_sensing, wash,
+#                                              rinse, spin, drying, finish, none.
+#   person.jonathan_stevens, zone.jonathan_s_office, zone.home
+#   notify.mobile_app_jonathan_s_phone         The companion app's notify action.
+#                                              notify.send_message cannot carry
+#                                              the data block the buttons need.
 #
 # How it behaves:
-#   1. The plug drawing over 5 W for a minute counts as a wash and takes one pod
-#      off the counter, at most once per 90 minutes so a cycle's pauses do not
-#      count twice. The counter stops at 0.
-#   2. Leaving work with fewer than 5 pods sends a reminder, every time.
+#   1. The washer reporting a "wash" job takes one pod off the counter. A
+#      drying-only run never reports "wash", so it does not count. At most once
+#      per 30 minutes, in case a paused cycle reports the phase again. The
+#      counter stops at 0.
+#   2. Leaving the office with fewer than 5 pods sends a reminder, every time.
 #   3. Arriving home after a reminder asks whether you bought any. "Bought some"
-#      takes the number you type and adds it; "Didn't get any" leaves the count
-#      alone, so the next time you leave work it reminds you again.
-#   4. If a wash drops the count below 5 you get a heads-up at the time, too.
+#      opens a text field for the number (the REPLY action on Android, text
+#      input on iOS); "Didn't get any" leaves the count alone, so the next time
+#      you leave the office it reminds you again.
+#   4. A wash that drops the count below 5 sends a heads-up at the time, too.
 #
-# Everything a notification does uses the companion app's own notify action,
-# not notify.send_message, which only works with notify entities and cannot
-# carry the action buttons.
+# Every phone notification uses the tag "washing_pods", so each one replaces
+# the last rather than piling up.
 
 - id: washing_pods_count_down
   alias: 'Washing pods: count down on wash'
-  description: Takes one pod off the counter when the washing machine starts a cycle.
+  description: Takes one pod off the counter when the washer starts a wash job.
   mode: single
   triggers:
-  - trigger: numeric_state
-    entity_id: sensor.washing_machine_power
-    above: 5
-    for:
-      minutes: 1
+  - trigger: state
+    entity_id: sensor.kitchen_washing_machine_job_state
+    to: wash
   conditions:
   - condition: template
     value_template: >-
       {{ this.attributes.last_triggered is none
-         or now() - this.attributes.last_triggered > timedelta(minutes=90) }}
+         or now() - this.attributes.last_triggered > timedelta(minutes=30) }}
   actions:
   - action: counter.decrement
     target:
@@ -77,7 +73,7 @@
       entity_id: counter.washing_machine_pods
       below: 5
     then:
-    - action: notify.mobile_app_my_phone
+    - action: notify.mobile_app_jonathan_s_phone
       data:
         title: Washing pods running low
         message: "{{ states('counter.washing_machine_pods') }} left after this wash."
@@ -90,8 +86,8 @@
   mode: single
   triggers:
   - trigger: zone
-    entity_id: person.me
-    zone: zone.work
+    entity_id: person.jonathan_stevens
+    zone: zone.jonathan_s_office
     event: leave
   conditions:
   - condition: numeric_state
@@ -101,7 +97,7 @@
   - action: input_boolean.turn_on
     target:
       entity_id: input_boolean.washing_pods_asked
-  - action: notify.mobile_app_my_phone
+  - action: notify.mobile_app_jonathan_s_phone
     data:
       title: Buy washing pods
       message: "Only {{ states('counter.washing_machine_pods') }} left. Pick some up on the way home?"
@@ -114,7 +110,7 @@
   mode: single
   triggers:
   - trigger: zone
-    entity_id: person.me
+    entity_id: person.jonathan_stevens
     zone: zone.home
     event: enter
   conditions:
@@ -122,14 +118,14 @@
     entity_id: input_boolean.washing_pods_asked
     state: 'on'
   actions:
-  - action: notify.mobile_app_my_phone
+  - action: notify.mobile_app_jonathan_s_phone
     data:
       title: Did you get washing pods?
       message: "{{ states('counter.washing_machine_pods') }} in the cupboard right now."
       data:
         tag: washing_pods
         actions:
-        - action: WASHING_PODS_BOUGHT
+        - action: REPLY
           title: Bought some
           behavior: textInput
           textInputButtonTitle: Add
@@ -145,13 +141,16 @@
   - trigger: event
     event_type: mobile_app_notification_action
     event_data:
-      action: WASHING_PODS_BOUGHT
+      action: REPLY
     id: bought
   - trigger: event
     event_type: mobile_app_notification_action
     event_data:
       action: WASHING_PODS_NOT_BOUGHT
     id: not_bought
+  conditions:
+  - condition: template
+    value_template: "{{ trigger.event.data.tag | default('washing_pods') == 'washing_pods' }}"
   actions:
   - action: input_boolean.turn_off
     target:
@@ -167,7 +166,7 @@
         entity_id: counter.washing_machine_pods
       data:
         value: "{{ states('counter.washing_machine_pods') | int(0) + bought }}"
-    - action: notify.mobile_app_my_phone
+    - action: notify.mobile_app_jonathan_s_phone
       data:
         title: Washing pods updated
         message: "Added {{ bought }}. {{ states('counter.washing_machine_pods') }} in stock."
