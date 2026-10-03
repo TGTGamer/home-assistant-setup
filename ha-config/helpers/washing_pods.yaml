@@ -20,9 +20,10 @@
 #
 # DELETING THIS NOTICE AUTOMATICALLY VOIDS YOUR LICENSE
 
-# Helpers for the washing pods tracker (ha-config/automations/washing_pods_tracker.yaml).
+# Helpers for the washing pods tracker (ha-config/automations/washing_pods_tracker.yaml)
+# and the batteries check (ha-config/automations/batteries.yaml).
 # Pasted into configuration.yaml on the hub; reload with the input_boolean
-# reload action (the counter needs a restart).
+# and input_number reload actions (the counter needs a restart).
 
 counter:
   washing_machine_pods:
@@ -42,3 +43,13 @@ input_boolean:
     name: Washing pods asked Jake
     icon: mdi:cart-outline
     initial: false
+
+input_number:
+  battery_low_threshold:
+    name: Battery low threshold
+    icon: mdi:battery-alert
+    initial: 15
+    min: 5
+    max: 50
+    step: 5
+    unit_of_measurement: '%'

@@ -54,10 +54,15 @@
 #      people's pending questions and tells the other person, so nobody buys
 #      twice.
 #   5. A wash that drops the count below 5 sends both phones a heads-up.
+#   6. "Washing pods" sits on the shopping list (todo.shopping_list) while the
+#      count is under 5 and is ticked off once it is 5 or more. The leaving-work
+#      reminder lists everything else on the shopping list too, so milk or
+#      batteries added by hand or by the batteries automation come along.
 #
 # Every phone notification uses the tag "washing_pods", so each one replaces
 # the last rather than piling up. "Run actions" in the UI treats the run as
-# Jonathan's, since no trigger says whose it is.
+# Jonathan's, since no trigger says whose it is. Running a single action card
+# on its own does not carry the automation's variables, so expect errors there.
 
 - id: washing_pods_count_down
   alias: 'Washing pods: count down on wash'
@@ -95,7 +100,7 @@
 
 - id: washing_pods_leaving_work
   alias: 'Washing pods: remind when leaving work'
-  description: Reminds whoever leaves work to buy pods while fewer than 5 are left.
+  description: Reminds whoever leaves work of the shopping list, and to buy pods while fewer than 5 are left.
   mode: parallel
   variables:
     phones:
@@ -112,22 +117,76 @@
     zone: zone.jake_s_work
     event: leave
     id: jake
-  conditions:
-  - condition: numeric_state
-    entity_id: counter.washing_machine_pods
-    below: 5
   actions:
-  - variables:
-      who: "{{ trigger.id | default('jonathan') }}"
-  - action: input_boolean.turn_on
+  - action: todo.get_items
     target:
-      entity_id: "input_boolean.washing_pods_asked_{{ who }}"
+      entity_id: todo.shopping_list
+    data:
+      status: needs_action
+    response_variable: shopping
+  - variables:
+      who: "{{ trigger.id if trigger is defined and trigger.id is defined else 'jonathan' }}"
+      pods_low: "{{ states('counter.washing_machine_pods') | int(0) < 5 }}"
+      others: >-
+        {{ shopping['todo.shopping_list']['items'] | map(attribute='summary')
+           | reject('eq', 'Washing pods') | list }}
+  - condition: template
+    value_template: "{{ pods_low or others | count > 0 }}"
+  - if:
+    - condition: template
+      value_template: "{{ pods_low }}"
+    then:
+    - action: input_boolean.turn_on
+      target:
+        entity_id: "input_boolean.washing_pods_asked_{{ who }}"
   - action: "{{ phones[who] }}"
     data:
-      title: Buy washing pods
-      message: "Only {{ states('counter.washing_machine_pods') }} left. Pick some up on the way home?"
+      title: "{{ 'Buy washing pods' if pods_low else 'Shopping list' }}"
+      message: >-
+        {% if pods_low %}Only {{ states('counter.washing_machine_pods') }} pods left.{% endif %}
+        {% if others %} On the list: {{ others | join(', ') }}.{% endif %}
       data:
         tag: washing_pods
+
+- id: washing_pods_shopping_list
+  alias: 'Washing pods: keep on the shopping list'
+  description: Lists "Washing pods" while fewer than 5 are left and ticks it off once there are 5 or more.
+  mode: queued
+  triggers:
+  - trigger: numeric_state
+    entity_id: counter.washing_machine_pods
+    below: 5
+  - trigger: numeric_state
+    entity_id: counter.washing_machine_pods
+    above: 4
+  actions:
+  - action: todo.get_items
+    target:
+      entity_id: todo.shopping_list
+    data:
+      status: needs_action
+    response_variable: shopping
+  - variables:
+      listed: >-
+        {{ shopping['todo.shopping_list']['items'] | selectattr('summary', 'eq', 'Washing pods')
+           | list | count > 0 }}
+      low: "{{ states('counter.washing_machine_pods') | int(0) < 5 }}"
+  - choose:
+    - conditions: "{{ low and not listed }}"
+      sequence:
+      - action: todo.add_item
+        target:
+          entity_id: todo.shopping_list
+        data:
+          item: Washing pods
+    - conditions: "{{ not low and listed }}"
+      sequence:
+      - action: todo.update_item
+        target:
+          entity_id: todo.shopping_list
+        data:
+          item: Washing pods
+          status: completed
 
 - id: washing_pods_arriving_home
   alias: 'Washing pods: ask when home'
@@ -150,10 +209,10 @@
     id: jake
   conditions:
   - condition: template
-    value_template: "{{ is_state('input_boolean.washing_pods_asked_' ~ (trigger.id | default('jonathan')), 'on') }}"
+    value_template: "{{ is_state('input_boolean.washing_pods_asked_' ~ (trigger.id if trigger is defined and trigger.id is defined else 'jonathan'), 'on') }}"
   actions:
   - variables:
-      who: "{{ trigger.id | default('jonathan') }}"
+      who: "{{ trigger.id if trigger is defined and trigger.id is defined else 'jonathan' }}"
   - action: "{{ phones[who] }}"
     data:
       title: Did you get washing pods?
@@ -193,10 +252,10 @@
     id: not_bought
   conditions:
   - condition: template
-    value_template: "{{ trigger.event.data.tag | default('washing_pods') == 'washing_pods' }}"
+    value_template: "{{ trigger is not defined or trigger.event is not defined or trigger.event.data.tag | default('washing_pods') == 'washing_pods' }}"
   actions:
   - variables:
-      who: "{{ owners.get(trigger.event.data.device_id, 'jonathan') if trigger.event is defined else 'jonathan' }}"
+      who: "{{ owners.get(trigger.event.data.device_id, 'jonathan') if trigger is defined and trigger.event is defined else 'jonathan' }}"
       other: "{{ 'jake' if who == 'jonathan' else 'jonathan' }}"
   - action: input_boolean.turn_off
     target:
