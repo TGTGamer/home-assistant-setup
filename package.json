@@ -5,6 +5,7 @@
   "license": "SEE LICENSE IN LICENSE",
   "packageManager": "pnpm@12.4.2",
   "scripts": {
+    "openclaw:eventiva": "bash scripts/setup-eventiva-supervisor.sh",
     "setup": "uv sync --locked",
     "test": "uv run pytest",
     "lint": "uv run ruff check . && uv run ruff format --check .",

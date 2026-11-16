@@ -34,6 +34,7 @@ Local: copy `.env.example` to `.env` (gitignored); run `pass-cli run --env-file 
 | all | `pnpm verify` |
 | previews | `pnpm preview`, PNGs in `previews/` |
 | live | `pnpm dev`, needs `HA_URL` `HA_TOKEN`, writes `previews/live.png` |
+| Eventiva supervisor | `pnpm openclaw:eventiva status`, needs `EVENTIVA_WORKSPACE`; run in the OpenClaw app, see `docs/eventiva-automation.md` |
 
 No ports. No server.
 
